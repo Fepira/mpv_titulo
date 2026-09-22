@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.postgres.fields import ArrayField
 
 class Rol(models.Model):
     id_rol = models.AutoField(primary_key=True)
@@ -36,22 +37,71 @@ class Programa(models.Model):
     def __str__(self):
         return f"{self.nombre_programa} ({self.codigo_programa})"
 
+
+
 class Curso(models.Model):
+
+    PERIODICIDAD_CHOICES = [
+        ('0', 'ANUAL'),
+        ('1', 'SEMESTRAL'),
+        ('2', 'BIMESTRAL'),
+    ]
+
+    SUBPERIODO_CHOICES = [
+        ('COMPLETO', 'Semestre Completo'),
+        ('A', 'Primer Bimestre (A)'),
+        ('B', 'Segundo Bimestre (B)'),
+    ]
+
     id_curso = models.AutoField(primary_key=True)
-    programa = models.ForeignKey(Programa, on_delete=models.CASCADE, db_column='id_programa')
+    programa = models.ForeignKey('Programa', on_delete=models.CASCADE, db_column='id_programa')
     codigo_asignatura = models.CharField(max_length=50)
     nombre_asignatura = models.CharField(max_length=150)
+    
+    # Nivel cronológico en la malla (SIEMPRE enteros puros)
+    semestres = ArrayField(models.IntegerField(), default=list)
+    
+    Periodicidad = models.CharField(max_length=50, choices=PERIODICIDAD_CHOICES, default='1')
+    
+    # Fracción del periodo en la que se dicta
+    subperiodo = models.CharField(max_length=15, choices=SUBPERIODO_CHOICES, default='COMPLETO')
+    
+    Creditos = models.IntegerField(default=0)
     modulos_teoricos = models.IntegerField(null=True, blank=True)
     modulos_practicos = models.IntegerField(null=True, blank=True)
     modulos_ayudantia_1 = models.IntegerField(null=True, blank=True)
     modulos_ayudantia_2 = models.IntegerField(null=True, blank=True)
-    modulos_semanales = models.IntegerField()
-    creditos_sct = models.IntegerField()
     cupo_max_seccion = models.IntegerField()
     es_bolsa = models.BooleanField()
 
     def __str__(self):
         return self.nombre_asignatura
+
+    @property
+    def nombre_periodo_formateado(self):
+        """
+        Se encarga exclusivamente de la capa de presentación.
+        Traduce la estructura pura de la base de datos a lenguaje humano.
+        """
+        if not self.semestres:
+            return ""
+            
+        str_sem = [str(s) for s in self.semestres]
+        base_str = ""
+
+        # 1. Resolver el nivel cronológico (conservando la disyunción 'o' para renovaciones de malla complejas)
+        if len(self.semestres) == 1:
+            base_str = str_sem[0]
+        elif self.Periodicidad == '0': 
+            base_str = " y ".join(str_sem)
+        else: 
+            base_str = " o ".join(str_sem)
+            
+        # 2. Agregar el sufijo bimestral si corresponde
+        if self.Periodicidad == '2' and self.subperiodo in ['A', 'B']:
+            return f"{base_str}{self.subperiodo.lower()}"
+            
+        return base_str
 
 class BolsaDetalle(models.Model):
     id_detalle = models.AutoField(primary_key=True)

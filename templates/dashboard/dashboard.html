@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard Académico</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f7f6; }
+        .grid { display: flex; gap: 20px; margin-bottom: 30px; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); flex: 1; }
+        .numero-grande { font-size: 2em; font-weight: bold; color: #2c3e50; }
+    </style>
+</head>
+<body>
+    <h1>Resumen de Operaciones y Mallas</h1>
+    
+    <!-- KPIs Principales -->
+    <div class="grid">
+        <div class="card">
+            <h3>Programas Activos</h3>
+            <div class="numero-grande">{{ total_programas }}</div>
+        </div>
+        <div class="card">
+            <h3>Cursos Registrados</h3>
+            <div class="numero-grande">{{ total_cursos }}</div>
+        </div>
+        <div class="card">
+            <h3>Total Módulos Teóricos</h3>
+            <div class="numero-grande">{{ volumen_modulos.total_teoricos|default:0 }}</div>
+        </div>
+    </div>
+
+    <div class="grid">
+        <!-- Tabla de Cursos Críticos -->
+        <div class="card">
+            <h3>Top 5 Cursos con Mayor Cupo (Proyección de Salas)</h3>
+            <ul>
+                {% for curso in cursos_masivos %}
+                    <li>
+                        <strong>{{ curso.codigo_asignatura }}</strong> - {{ curso.nombre_asignatura }} 
+                        (Cupo: {{ curso.cupo_max_seccion }})
+                    </li>
+                {% empty %}
+                    <li>No hay cursos registrados.</li>
+                {% endfor %}
+            </ul>
+        </div>
+        
+        <!-- Agrupación por Periodicidad -->
+        <div class="card">
+            <h3>Distribución por Periodicidad</h3>
+            <ul>
+                {% for grupo in cursos_por_periodicidad %}
+                    <li>
+                        <!-- Traducimos el código 0,1,2 usando condicionales básicos -->
+                        {% if grupo.Periodicidad == '0' %} Anuales
+                        {% elif grupo.Periodicidad == '1' %} Semestrales
+                        {% elif grupo.Periodicidad == '2' %} Bimestrales
+                        {% else %} Otro {% endif %}: 
+                        <strong>{{ grupo.total }}</strong> cursos
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
