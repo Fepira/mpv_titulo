@@ -1,0 +1,177 @@
+{% load static %}
+<table class="w-full text-left bg-uft-white border border-uft-light rounded-lg overflow-hidden shadow-sm">
+    <thead class="bg-uft-light/50 border-b border-uft-light">
+        <tr class="text-[10px] text-uft-gray uppercase tracking-wider">
+            <th class="w-10 px-3 py-3 text-center"></th>
+            <th class="px-4 py-3 font-semibold">Sección (NRC)</th>
+            <th class="px-4 py-3 font-semibold">Cód. Curso</th>
+            <th class="px-4 py-3 font-semibold text-center border-l border-uft-light">M. Teo</th>
+            <th class="px-4 py-3 font-semibold text-center">M. Prac</th>
+            <th class="px-4 py-3 font-semibold text-center">M. Ayud 1</th>
+            <th class="px-4 py-3 font-semibold text-center border-r border-uft-light">M. Ayud 2</th>
+            <th class="px-6 py-3 font-semibold text-right">Valor Sección</th>
+            <th class="px-4 py-3 font-semibold text-center w-16">Acciones</th>
+        </tr>
+    </thead>
+    <tbody class="divide-y divide-uft-light">
+    {% for s in secciones %}
+    {% with curso=s.curso|default:curso_default %}
+    <tr class="hover:bg-uft-light/20 transition cursor-pointer" onclick="toggleRow('row-sec-{{ s.id_seccion }}', 'icon-sec-{{ s.id_seccion }}')">
+        <td class="px-3 py-3 text-center text-facultad-green">
+            <i id="icon-sec-{{ s.id_seccion }}" class="ph-fill ph-caret-right text-base transition-transform"></i>
+        </td>
+        <td class="px-4 py-3 font-bold text-xs flex items-center gap-2">
+            {{ s.nrc_seccion }}
+            {% if s.total_asignaciones > 0 %}
+                <span class="bg-facultad-green/20 text-green-800 text-[10px] px-1.5 py-0.5 rounded font-bold">
+                    {{ s.total_asignaciones }} asig.
+                </span>
+            {% else %}
+                <span class="bg-blue-100 text-blue-800 text-[10px] px-1.5 py-0.5 rounded font-bold">VACÍA</span>
+            {% endif %}
+        </td>
+        <td class="px-4 py-3 text-xs text-uft-gray">{{ curso.codigo_asignatura }}</td>
+        <td class="px-4 py-3 text-center text-xs border-l border-uft-light">{{ curso.modulos_teoricos|default:0 }}</td>
+        <td class="px-4 py-3 text-center text-xs">{{ curso.modulos_practicos|default:0 }}</td>
+        <td class="px-4 py-3 text-center text-xs">{{ curso.modulos_ayudantia_1|default:0 }}</td>
+        <td class="px-4 py-3 text-center text-xs border-r border-uft-light">{{ curso.modulos_ayudantia_2|default:0 }}</td>
+        <td class="px-6 py-3 text-right font-medium">${{ s.total_costo|default:0 }}</td>
+        <td class="px-4 py-3 text-center">
+            <form method="POST"
+                  onsubmit="return confirm('¿Eliminar sección {{ s.nrc_seccion }}?\nSe borran en cascada sus componentes y asignaciones docentes.');"
+                  class="inline-block"
+                  onclick="event.stopPropagation()">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="eliminar_seccion">
+                <input type="hidden" name="id_seccion" value="{{ s.id_seccion }}">
+                <button type="submit" title="Eliminar sección" class="text-uft-gray hover:text-red-500 transition p-1">
+                    <i class="ph ph-trash text-lg"></i>
+                </button>
+            </form>
+        </td>
+    </tr>
+
+    <tr id="row-sec-{{ s.id_seccion }}" class="hidden bg-[#eefaf2]">
+        <td colspan="9" class="p-0 border-l-4 border-facultad-green">
+            <div class="px-12 py-4">
+                {% if s.componentes %}
+                    {% for comp in s.componentes %}
+                    <div class="mb-4 bg-uft-white border border-facultad-green/30 rounded-lg overflow-hidden shadow-sm">
+                        <div class="bg-facultad-green/10 border-b border-facultad-green/20 px-5 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            <div class="flex items-center gap-3 flex-wrap">
+                                {% if 'Teóric' in comp.componente_curso or 'Teoric' in comp.componente_curso %}
+                                    <span class="bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded text-[10px] font-bold">TEÓRICA</span>
+                                {% elif 'Práct' in comp.componente_curso or 'Pract' in comp.componente_curso %}
+                                    <span class="bg-orange-100 text-orange-800 px-2.5 py-0.5 rounded text-[10px] font-bold">PRÁCTICA</span>
+                                {% elif 'tipo 1' in comp.componente_curso or 'tipo1' in comp.componente_curso %}
+                                    <span class="bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded text-[10px] font-bold">AYUDANTÍA 1</span>
+                                {% elif 'tipo 2' in comp.componente_curso or 'tipo2' in comp.componente_curso %}
+                                    <span class="bg-purple-100 text-purple-800 px-2.5 py-0.5 rounded text-[10px] font-bold">AYUDANTÍA 2</span>
+                                {% else %}
+                                    <span class="bg-gray-100 text-gray-800 px-2.5 py-0.5 rounded text-[10px] font-bold">{{ comp.componente_curso }}</span>
+                                {% endif %}
+                                <span class="font-bold text-sm">{{ comp.componente_curso }}</span>
+                                <span class="text-xs text-uft-gray ml-2">
+                                    Costo acumulado:
+                                    <strong class="text-uft-black font-serif">${{ comp.costo_total|default:0 }}</strong>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="divide-y divide-uft-light">
+                            {% with asigs=comp.asignaciones.all %}
+                            {% if asigs %}
+                                <table class="w-full text-left text-xs">
+                                    <thead class="bg-uft-light/30 text-uft-gray text-[10px] uppercase tracking-wider">
+                                        <tr>
+                                            <th class="px-5 py-2 font-semibold">Docente / ID</th>
+                                            <th class="px-4 py-2 font-semibold text-center">Categoría Base</th>
+                                            <th class="px-4 py-2 font-semibold text-center">Asignado por</th>
+                                            <th class="px-6 py-2 font-semibold text-right">Costo Proyectado</th>
+                                            <th class="px-4 py-2 font-semibold text-center w-16">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    {% for a in asigs %}
+                                        <tr class="hover:bg-[#f7fcf9] transition">
+                                            <td class="px-5 py-2">
+                                                <span class="font-bold text-uft-black block">{{ a.docente.nombre_completo }}</span>
+                                                <span class="text-[10px] text-uft-gray">ID: {{ a.docente.id_docente }}</span>
+                                            </td>
+                                            <td class="px-4 py-2 text-center">
+                                                {{ a.docente.categoria.nombre_categoria|default:"Sin categoría" }}
+                                                {% if a.docente.categoria %}
+                                                    <div class="text-[10px] text-uft-gray">
+                                                        ${{ a.docente.categoria.tarifa_modulo|default:0 }}/mód
+                                                    </div>
+                                                {% endif %}
+                                            </td>
+                                            <td class="px-4 py-2 text-center text-uft-gray">
+                                                {% if a.usuario_asignador.first_name or a.usuario_asignador.last_name %}
+                                                    {{ a.usuario_asignador.first_name }} {{ a.usuario_asignador.last_name }}
+                                                {% else %}
+                                                    {{ a.usuario_asignador.username }}
+                                                {% endif %}
+                                            </td>
+                                            <td class="px-6 py-2 text-right font-medium">${{ a.costo_proyectado|default:0 }}</td>
+                                            <td class="px-4 py-2 text-center">
+                                                <form method="POST" onsubmit="return confirm('¿Desasignar {{ a.docente.nombre_completo }}?');">
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="accion" value="desasignar_docente">
+                                                    <input type="hidden" name="id_asignacion" value="{{ a.id_asignacion }}">
+                                                    <button type="submit" title="Desasignar docente" class="text-uft-gray hover:text-red-500 transition p-1">
+                                                        <i class="ph ph-user-minus text-sm"></i>
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                    </tbody>
+                                </table>
+                            {% else %}
+                                <div class="px-5 py-6 text-center text-uft-gray text-xs">
+                                    <i class="ph ph-user-plus text-2xl mb-2 block text-facultad-green/60"></i>
+                                    Sin docentes asignados. Usa el formulario de abajo.
+                                </div>
+                            {% endif %}
+                            {% endwith %}
+                        </div>
+
+                        <div class="border-t border-facultad-green/10 bg-facultad-green/5 px-5 py-3">
+                            <form method="POST" class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end" onsubmit="event.stopPropagation()">
+                                {% csrf_token %}
+                                <input type="hidden" name="accion" value="asignar_docente">
+                                <input type="hidden" name="id_componente" value="{{ comp.id_componente }}">
+                                <div class="flex-1 min-w-[220px]">
+                                    <label class="block text-[10px] text-uft-gray uppercase tracking-wider font-semibold mb-1">
+                                        Docente (ingresar ID o seleccionar del listado)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        list="docentes-list-global"
+                                        name="rut_docente"
+                                        required
+                                        placeholder="Escribe ID docente o busca por nombre..."
+                                        class="w-full border border-uft-light rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-uft-cyan focus:ring-1 focus:ring-uft-cyan">
+                                </div>
+                                <button type="submit"
+                                        class="bg-facultad-green text-uft-black px-4 py-2 rounded-lg font-bold hover:bg-opacity-80 transition shadow-sm flex items-center justify-center gap-1.5 text-sm sm:whitespace-nowrap">
+                                    <i class="ph ph-plus"></i> Asignar
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-6 text-xs text-uft-gray bg-uft-white/60 rounded-lg border border-dashed border-facultad-green/30">
+                        Esta sección no tiene componentes declarados (revisa modulos_teoricos/practicos del curso).
+                    </div>
+                {% endif %}
+            </div>
+        </td>
+    </tr>
+    {% endwith %}
+    {% empty %}
+    {% endfor %}
+    </tbody>
+</table>

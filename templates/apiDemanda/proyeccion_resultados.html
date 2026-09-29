@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <title>Resultados Proyección {{ periodo.nombre_periodo }}</title>
+    {% include "apiDemanda/_head_base.html" %}
+</head>
+<body class="font-sans text-uft-black antialiased" style="background:#f5f7fa;">
+
+    <div style="max-width:1200px; margin:30px auto; padding:0 20px;">
+        <header class="bg-uft-white border border-uft-light p-6 rounded-xl shadow-sm mb-5 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+            <div>
+                <nav class="flex text-xs text-uft-gray mb-2 font-medium">
+                    <a href="{% url 'apiDemanda:proyeccion_demanda_form' %}" class="hover:text-uft-cyan transition">Dashboard</a>
+                    <span class="mx-1">/</span>
+                    <span class="text-uft-black">Estimación {{ periodo.nombre_periodo }}</span>
+                </nav>
+                <h2 class="font-serif text-2xl text-uft-black leading-tight">Resultados Proyección: {{ periodo.nombre_periodo }}</h2>
+                <p class="text-xs text-uft-gray mt-1">Aquí puedes revisar la estimación de demanda por curso y luego pasar a programar docentes.</p>
+            </div>
+            <div class="flex flex-wrap gap-3">
+                <a href="{% url 'apiDemanda:gestionar_programacion_periodo' periodo.id_periodo %}"
+                   class="bg-facultad-green hover:bg-opacity-80 text-uft-black px-4 py-2.5 rounded-lg font-bold transition shadow-sm inline-flex items-center gap-2 text-sm">
+                    <i class="ph ph-users-three text-lg"></i> Programar Docentes ({{ resumen.secciones_creadas }} secciones)
+                </a>
+                <a href="{% url 'apiDemanda:proyeccion_demanda_form' %}"
+                   class="bg-uft-black hover:bg-opacity-80 text-uft-white px-4 py-2.5 rounded-lg font-bold transition shadow-sm inline-flex items-center gap-2 text-sm">
+                    <i class="ph ph-arrow-left"></i> Volver al formulario
+                </a>
+            </div>
+        </header>
+
+        {% if messages %}
+            <div class="mb-5 space-y-2">
+            {% for m in messages %}
+                {% if m.tags == 'success' or m.level == DEFAULT_MESSAGE_LEVELS.SUCCESS %}
+                    <div class="msg success" style="padding:12px 14px; border-radius:8px; background:#d4edda; color:#155724; border:1px solid #c3e6cb; box-shadow:0 2px 6px rgba(0,0,0,.05);">
+                        {{ m }}
+                    </div>
+                {% else %}
+                    <div class="msg {{ m.tags }}" style="padding:12px 14px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,.05);">{{ m }}</div>
+                {% endif %}
+            {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+            <div class="kpi" style="background:#fff; padding:18px; border-radius:12px; box-shadow:0 2px 6px rgba(0,0,0,.08); border:1px solid #ebebeb;">
+                <h4 style="margin:0 0 6px; font-size:11px; color:#828282; text-transform:uppercase; letter-spacing:0.03em; font-weight:600;">Cursos proyectados</h4>
+                <div class="num font-serif text-3xl font-bold" style="color:#2c3e50;">{{ resumen.cursos_con_estimacion }}</div>
+            </div>
+            <div class="kpi" style="background:#fff; padding:18px; border-radius:12px; box-shadow:0 2px 6px rgba(0,0,0,.08); border:1px solid #ebebeb;">
+                <h4 style="margin:0 0 6px; font-size:11px; color:#828282; text-transform:uppercase; letter-spacing:0.03em; font-weight:600;">Alumnos proyectados</h4>
+                <div class="num font-serif text-3xl font-bold" style="color:#2c3e50;">{{ resumen.alumnos_total }}</div>
+            </div>
+            <div class="kpi" style="background:#fff; padding:18px; border-radius:12px; box-shadow:0 2px 6px rgba(0,0,0,.08); border:1px solid #ebebeb;">
+                <h4 style="margin:0 0 6px; font-size:11px; color:#828282; text-transform:uppercase; letter-spacing:0.03em; font-weight:600;">Secciones estimadas</h4>
+                <div class="num font-serif text-3xl font-bold" style="color:#00B7EB;">{{ resumen.secciones_total_est }}</div>
+            </div>
+            <div class="kpi" style="background:#fff; padding:18px; border-radius:12px; box-shadow:0 2px 6px rgba(0,0,0,.08); border:1px solid #ebebeb;">
+                <h4 style="margin:0 0 6px; font-size:11px; color:#828282; text-transform:uppercase; letter-spacing:0.03em; font-weight:600;">Secciones creadas</h4>
+                <div class="num font-serif text-3xl font-bold" style="color:#87db91;">{{ resumen.secciones_creadas }}</div>
+            </div>
+            <div class="kpi" style="background:#fff; padding:18px; border-radius:12px; box-shadow:0 2px 6px rgba(0,0,0,.08); border:1px solid #ebebeb;">
+                <h4 style="margin:0 0 6px; font-size:11px; color:#828282; text-transform:uppercase; letter-spacing:0.03em; font-weight:600;">Componentes creados</h4>
+                <div class="num font-serif text-3xl font-bold" style="color:#2c3e50;">{{ resumen.componentes_creados }}</div>
+            </div>
+        </div>
+
+        <div class="bg-uft-white border border-uft-light rounded-xl shadow-sm overflow-hidden">
+            <div class="px-6 py-4 bg-uft-black/[0.02] border-b border-uft-light flex justify-between items-center gap-4">
+                <h3 class="font-serif text-lg font-semibold text-uft-black flex items-center gap-2">
+                    <i class="ph ph-list-numbers text-uft-cyan"></i>
+                    Detalle por curso
+                </h3>
+                <div class="text-xs text-uft-gray">Pulsa <span class="font-bold text-uft-black">Programar</span> para asignar docentes a un curso específico</div>
+            </div>
+            <div style="max-height: 550px; overflow:auto;">
+                <table style="width:100%; border-collapse:collapse; font-size:14px;">
+                    <thead>
+                        <tr style="background:#2c3e50; color:#fff; position:sticky; top:0; z-index:10;">
+                            <th style="padding:11px 14px; text-align:left;">Código</th>
+                            <th style="padding:11px 14px; text-align:left;">Asignatura</th>
+                            <th style="padding:11px 14px; text-align:left;">Programa</th>
+                            <th style="padding:11px 14px; text-align:center;">Alumnos</th>
+                            <th style="padding:11px 14px; text-align:center;">Secciones</th>
+                            <th style="padding:11px 14px; text-align:center; width:150px;">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for e in estimaciones %}
+                            <tr style="border-bottom:1px solid #eee;">
+                                <td style="padding:10px 14px;"><strong>{{ e.curso.codigo_asignatura }}</strong></td>
+                                <td style="padding:10px 14px;">{{ e.curso.nombre_asignatura }}</td>
+                                <td style="padding:10px 14px; color:#555; font-size:13px;">{{ e.curso.programa.nombre_programa|default:"-" }}</td>
+                                <td style="padding:10px 14px; text-align:center;">{{ e.alumnos_proyectados }}</td>
+                                <td style="padding:10px 14px; text-align:center;"><strong class="text-uft-cyan">{{ e.secciones_calculadas }}</strong></td>
+                                <td style="padding:10px 14px; text-align:center;">
+                                    <a href="{% url 'apiDemanda:gestionar_programacion_curso' periodo.id_periodo e.curso.id_curso %}"
+                                       class="inline-flex items-center gap-1.5 bg-uft-cyan text-uft-white px-3 py-1.5 rounded-lg font-semibold text-xs hover:bg-opacity-85 transition shadow-sm">
+                                        <i class="ph ph-users-three"></i> Programar
+                                    </a>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr><td colspan="6" style="color:#999; text-align:center; padding:30px;">Sin datos. Ejecuta la proyección primero.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

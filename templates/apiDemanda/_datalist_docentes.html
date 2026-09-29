@@ -1,0 +1,7 @@
+{% if docentes_options %}
+<datalist id="docentes-list-global">
+{% for d_id, d_nom, d_cat in docentes_options %}
+<option value="{{ d_id }}">{{ d_nom }} — ID: {{ d_id }} ({{ d_cat|default:"Sin categoría" }})</option>
+{% endfor %}
+</datalist>
+{% endif %}

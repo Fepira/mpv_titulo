@@ -17,7 +17,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY')
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-cambiar-llave-secreta-en-produccion-mvp-titulo-2026')
 
 
 INSTALLED_APPS = [
@@ -29,10 +29,13 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.postgres',
     #local
-    'Applications.api', #agrego mi app api para que django lo reconozca y pueda usarlo
-    'Applications.Dashboard', #agrego mi app Dashboard para que django lo reconozca y pueda usarlo
-    'Applications.apiProgramacion' #agrego mi app apiProgramacion para que django lo reconozca y pueda usarlo
+    'Applications.apiDemanda',
+    'Applications.Dashboard',
+    'Applications.apiProgramacion',
+    'Applications.RadDocente',
 ]
+
+AUTH_USER_MODEL = 'apiDemanda.Usuario'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -77,9 +80,9 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'es-cl'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Santiago'
 
 USE_I18N = True
 

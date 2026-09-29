@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Programación Académica - Periodo {{ periodo.nombre_periodo }}</title>
+
+    {% include "apiDemanda/_head_base.html" %}
+</head>
+<body class="font-sans text-uft-black antialiased">
+
+<main class="min-h-screen">
+    <header class="bg-uft-white border-b border-uft-light px-8 py-6 sticky top-0 z-30 shadow-sm flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
+        <div>
+            <nav class="flex text-xs text-uft-gray mb-2 font-medium">
+                <ol class="inline-flex items-center space-x-1 md:space-x-2">
+                    <li><a href="{% url 'apiDemanda:proyeccion_demanda_form' %}" class="hover:text-uft-cyan transition">Dashboard</a></li>
+                    <li><span class="mx-1">/</span></li>
+                    <li><a href="{% url 'apiDemanda:proyeccion_resultados' periodo.id_periodo %}" class="hover:text-uft-cyan transition">Estimación {{ periodo.nombre_periodo }}</a></li>
+                    <li><span class="mx-1">/</span></li>
+                    <li class="text-uft-black">Programación Académica</li>
+                </ol>
+            </nav>
+            <h1 class="font-serif text-3xl text-uft-black leading-tight">Programación Académica</h1>
+            <p class="text-xs text-uft-gray mt-1">
+                Todos los cursos del periodo que tienen al menos 1 sección creada (o estimada).
+                Pulsa la fila de un curso para ver sus secciones y asignar docentes.
+            </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+            <div class="bg-uft-light/50 border border-uft-light rounded-lg px-3 py-2 flex items-center gap-2">
+                <span class="text-xs text-uft-gray font-medium">Periodo:</span>
+                {% url 'apiDemanda:gestionar_programacion_periodo' 999999999 as url_tpl_periodo %}
+                <select id="periodo-selector"
+                        data-url-template="{{ url_tpl_periodo|default:'/0/' }}"
+                        data-placeholder="999999999"
+                        onchange="
+                            const tpl = this.dataset.urlTemplate;
+                            const ph = this.dataset.placeholder;
+                            if (this.value && tpl.includes(ph)) {
+                                window.location = tpl.replace(ph, this.value);
+                            }
+                        "
+                        class="bg-transparent text-sm font-semibold text-uft-black focus:outline-none cursor-pointer">
+                    {% for p in periodos_all %}
+                        <option value="{{ p.id_periodo }}" {% if p.id_periodo == periodo.id_periodo %}selected{% endif %}>
+                            {{ p.nombre_periodo }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="bg-facultad-green/20 text-uft-black px-3 py-2 rounded-lg border border-facultad-green/30 flex items-center gap-2 text-sm">
+                <i class="ph-fill ph-wallet"></i>
+                <div class="flex flex-col leading-tight">
+                    <span class="text-[10px] font-semibold text-uft-black/70 uppercase tracking-wider">Ppto Total Estimado</span>
+                    <span class="font-serif font-bold text-lg leading-none">${{ total_presupuesto|default:0 }}</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="p-8">
+        {% if messages %}
+            <div class="mb-5 space-y-2 max-w-full">
+            {% for m in messages %}
+                {% if m.level == DEFAULT_MESSAGE_LEVELS.SUCCESS %}
+                    <div class="bg-green-50 border border-green-200 text-green-800 p-3 rounded-lg flex gap-2 items-start text-sm shadow-sm">
+                        <i class="ph-fill ph-check-circle text-lg text-green-600 shrink-0 mt-0.5"></i>
+                        <span>{{ m }}</span>
+                    </div>
+                {% elif m.level == DEFAULT_MESSAGE_LEVELS.WARNING %}
+                    <div class="bg-amber-50 border border-amber-200 text-amber-800 p-3 rounded-lg flex gap-2 items-start text-sm shadow-sm">
+                        <i class="ph-fill ph-warning text-lg text-amber-600 shrink-0 mt-0.5"></i>
+                        <span>{{ m }}</span>
+                    </div>
+                {% elif m.level == DEFAULT_MESSAGE_LEVELS.ERROR %}
+                    <div class="bg-red-50 border border-red-200 text-red-800 p-3 rounded-lg flex gap-2 items-start text-sm shadow-sm">
+                        <i class="ph-fill ph-x-circle text-lg text-red-600 shrink-0 mt-0.5"></i>
+                        <span>{{ m }}</span>
+                    </div>
+                {% else %}
+                    <div class="bg-blue-50 border border-blue-200 text-blue-800 p-3 rounded-lg flex gap-2 items-start text-sm shadow-sm">
+                        <i class="ph-fill ph-info text-lg text-blue-600 shrink-0 mt-0.5"></i>
+                        <span>{{ m }}</span>
+                    </div>
+                {% endif %}
+            {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-uft-white border border-uft-light p-5 rounded-xl shadow-sm">
+                <div class="flex items-center justify-between mb-2">
+                    <h4 class="text-xs text-uft-gray uppercase tracking-wider font-semibold">Cursos</h4>
+                    <i class="ph ph-book-open text-uft-cyan text-xl"></i>
+                </div>
+                <div class="font-serif text-3xl font-bold text-uft-black">{{ total_cursos }}</div>
+                <p class="text-xs text-uft-gray mt-1">Con al menos una sección creada</p>
+            </div>
+            <div class="bg-uft-white border border-uft-light p-5 rounded-xl shadow-sm">
+                <div class="flex items-center justify-between mb-2">
+                    <h4 class="text-xs text-uft-gray uppercase tracking-wider font-semibold">Secciones</h4>
+                    <i class="ph ph-books text-facultad-green text-xl"></i>
+                </div>
+                <div class="font-serif text-3xl font-bold text-uft-black">{{ total_secciones }}</div>
+                <p class="text-xs text-uft-gray mt-1">Secciones programadas en total</p>
+            </div>
+            <div class="bg-uft-white border border-uft-light p-5 rounded-xl shadow-sm">
+                <div class="flex items-center justify-between mb-2">
+                    <h4 class="text-xs text-uft-gray uppercase tracking-wider font-semibold">Asignaciones</h4>
+                    <i class="ph ph-users-three text-uft-cyan text-xl"></i>
+                </div>
+                <div class="font-serif text-3xl font-bold text-uft-black">{{ total_asignaciones }}</div>
+                <p class="text-xs text-uft-gray mt-1">Docentes asignados a componentes</p>
+            </div>
+            <div class="bg-uft-white border border-uft-light p-5 rounded-xl shadow-sm">
+                <div class="flex items-center justify-between mb-2">
+                    <h4 class="text-xs text-uft-gray uppercase tracking-wider font-semibold">% Asignado</h4>
+                    <i class="ph-fill ph-percent text-facultad-green text-xl"></i>
+                </div>
+                <div class="font-serif text-3xl font-bold text-uft-black">
+                    {% if total_secciones > 0 and total_asignaciones >= 0 %}
+                        {% widthratio total_asignaciones total_cursos 1 %}
+                    {% else %}0{% endif %}
+                </div>
+                <p class="text-xs text-uft-gray mt-1">Asignaciones promedio por curso</p>
+            </div>
+        </div>
+
+        <div class="bg-uft-white border border-uft-light border-b-0 rounded-t-xl p-4 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="relative w-full md:w-80">
+                <i class="ph ph-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-uft-gray"></i>
+                <input type="text" id="buscador-cursos"
+                       placeholder="Buscar curso / código / programa..."
+                       class="w-full bg-[#FAFAFA] border border-uft-light rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-uft-cyan focus:ring-1 focus:ring-uft-cyan transition">
+            </div>
+            <div class="flex flex-wrap items-center gap-3 text-sm font-medium justify-end">
+                <div class="bg-uft-cyan/10 text-uft-cyan px-3 py-1.5 rounded-lg border border-uft-cyan/20 flex items-center gap-2 font-semibold">
+                    <i class="ph-fill ph-chart-line-up"></i> {{ total_cursos }} cursos / {{ total_secciones }} secciones
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-uft-white border border-uft-light rounded-b-xl shadow-sm overflow-hidden flex-1 relative">
+            <div class="overflow-x-auto w-full h-full custom-scrollbar">
+                <table class="w-full text-left border-collapse min-w-[1200px]" id="tabla-cursos">
+                    <thead class="bg-uft-black text-uft-white sticky top-0 z-20">
+                        <tr class="text-[11px] uppercase tracking-wider">
+                            <th class="w-10 px-3 py-4 text-center"></th>
+                            <th class="px-4 py-4 font-semibold">Programa</th>
+                            <th class="px-4 py-4 font-semibold">Código Curso</th>
+                            <th class="px-4 py-4 font-semibold">Nivel (Malla)</th>
+                            <th class="px-4 py-4 font-semibold">Asignatura</th>
+                            <th class="px-4 py-4 font-semibold text-center border-l border-uft-gray/30 bg-uft-white/5">N° Secc</th>
+                            <th class="px-3 py-4 font-semibold text-center bg-uft-white/5">Mod Teo</th>
+                            <th class="px-3 py-4 font-semibold text-center bg-uft-white/5">Mod Prac</th>
+                            <th class="px-3 py-4 font-semibold text-center bg-uft-white/5">Ayud 1</th>
+                            <th class="px-3 py-4 font-semibold text-center border-r border-uft-gray/30 bg-uft-white/5">Ayud 2</th>
+                            <th class="px-6 py-4 font-semibold text-right text-facultad-green">Valor Total</th>
+                            <th class="px-4 py-4 font-semibold text-center w-16">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-uft-light text-sm" id="tbody-cursos">
+                    {% if cursos_agrupados %}
+                        {% include "apiDemanda/_fila_curso.html" with es_detalle_curso=False %}
+                    {% else %}
+                        <tr>
+                            <td colspan="12" class="px-5 py-16 text-center">
+                                <i class="ph ph-calendar-x text-5xl text-uft-gray/40 mb-3 block"></i>
+                                <p class="text-uft-gray font-semibold mb-2">No existen secciones para el periodo {{ periodo.nombre_periodo }}.</p>
+                                <p class="text-xs text-uft-gray mb-4 max-w-md mx-auto">
+                                    Aún no has ejecutado la estimación de demanda o no hay cursos que cumplan las reglas del algoritmo.
+                                    Puedes generar secciones manualmente desde la página de Estimación.
+                                </p>
+                                <a href="{% url 'apiDemanda:proyeccion_demanda_ejecutar' %}"
+                                   class="bg-uft-cyan text-uft-white px-5 py-2.5 rounded-lg font-bold hover:bg-opacity-90 transition shadow-sm inline-flex items-center gap-2 text-sm">
+                                    <i class="ph ph-chart-line-up"></i> Ir a Estimación de Demanda
+                                </a>
+                            </td>
+                        </tr>
+                    {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="mt-4 flex flex-col md:flex-row justify-between items-center gap-3 text-sm">
+            <p class="text-uft-gray">
+                Mostrando página <strong class="text-uft-black">{{ page_obj.number }}</strong>
+                de <strong class="text-uft-black">{{ paginator.num_pages }}</strong>
+                · <strong class="text-uft-black">{{ total_cursos }}</strong> cursos totales en el periodo {{ periodo.nombre_periodo }}
+            </p>
+            {% if is_paginated %}
+            <div class="flex items-center gap-1" id="pagination-controls">
+                {% if page_obj.has_previous %}
+                <a href="?page=1" class="px-2.5 py-1.5 rounded border border-uft-light text-uft-black hover:bg-uft-cyan hover:text-white transition font-medium">
+                    <i class="ph-fill ph-caret-double-left text-lg"></i>
+                </a>
+                <a href="?page={{ page_obj.previous_page_number }}" class="px-2.5 py-1.5 rounded border border-uft-light text-uft-black hover:bg-uft-cyan hover:text-white transition font-medium">
+                    <i class="ph-fill ph-caret-left text-lg"></i>
+                </a>
+                {% endif %}
+                {% for num in page_obj.paginator.page_range %}
+                    {% if num == page_obj.number %}
+                        <span class="px-3 py-1.5 rounded bg-uft-black text-white font-semibold min-w-[34px] text-center">{{ num }}</span>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <a href="?page={{ num }}" class="px-3 py-1.5 rounded border border-uft-light text-uft-black hover:bg-uft-cyan hover:text-white transition font-medium min-w-[34px] text-center">{{ num }}</a>
+                    {% elif num == 1 or num == paginator.num_pages %}
+                        <a href="?page={{ num }}" class="px-3 py-1.5 rounded border border-uft-light text-uft-black hover:bg-uft-cyan hover:text-white transition font-medium min-w-[34px] text-center">{{ num }}</a>
+                    {% elif num == page_obj.number|add:'-3' or num == page_obj.number|add:'3' %}
+                        <span class="px-1.5 py-1 text-uft-gray/60">…</span>
+                    {% endif %}
+                {% endfor %}
+                {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}" class="px-2.5 py-1.5 rounded border border-uft-light text-uft-black hover:bg-uft-cyan hover:text-white transition font-medium">
+                    <i class="ph-fill ph-caret-right text-lg"></i>
+                </a>
+                <a href="?page={{ paginator.num_pages }}" class="px-2.5 py-1.5 rounded border border-uft-light text-uft-black hover:bg-uft-cyan hover:text-white transition font-medium">
+                    <i class="ph-fill ph-caret-double-right text-lg"></i>
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</main>
+
+{% include "apiDemanda/_scripts_base.html" %}
+{% include "apiDemanda/_datalist_docentes.html" %}
+<script>
+    // Buscador simple en la tabla
+    document.getElementById('buscador-cursos').addEventListener('input', function(e) {
+        const q = e.target.value.toLowerCase().trim();
+        const filas = document.querySelectorAll('#tbody-cursos > tr[id^="row-curso-"] ~ tr, #tbody-cursos > tr:not([id])');
+        document.querySelectorAll('#tbody-cursos > tr').forEach(tr => {
+            if (!tr.hasAttribute('onclick') || !tr.getAttribute('onclick').includes('toggleRow(\'row-curso-')) return;
+            const txt = tr.textContent.toLowerCase();
+            tr.style.display = txt.includes(q) ? '' : 'none';
+            const idRow = tr.onclick.toString().match(/row-curso-(\d+)/);
+            if (idRow) {
+                const child = document.getElementById('row-curso-' + idRow[1]);
+                if (child) child.style.display = 'none';
+            }
+        });
+    });
+</script>
+</body>
+</html>

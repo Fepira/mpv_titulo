@@ -1,4 +1,4 @@
 from django.db import models
-from Applications.api.models import *
+from Applications.apiDemanda.models import *
 
 # Create your models here.

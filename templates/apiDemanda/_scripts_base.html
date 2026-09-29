@@ -1,0 +1,17 @@
+<script>
+    function toggleRow(rowId, iconId) {
+        const row = document.getElementById(rowId);
+        const icon = document.getElementById(iconId);
+        if (row && icon) {
+            if (row.classList.contains('hidden')) {
+                row.classList.remove('hidden');
+                icon.classList.remove('ph-caret-right');
+                icon.classList.add('ph-caret-down');
+            } else {
+                row.classList.add('hidden');
+                icon.classList.remove('ph-caret-down');
+                icon.classList.add('ph-caret-right');
+            }
+        }
+    }
+</script>

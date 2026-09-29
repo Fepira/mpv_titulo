@@ -50,10 +50,9 @@
             <ul>
                 {% for grupo in cursos_por_periodicidad %}
                     <li>
-                        <!-- Traducimos el código 0,1,2 usando condicionales básicos -->
-                        {% if grupo.Periodicidad == '0' %} Anuales
-                        {% elif grupo.Periodicidad == '1' %} Semestrales
-                        {% elif grupo.Periodicidad == '2' %} Bimestrales
+                        {% if grupo.periodicidad == '0' %} Anuales
+                        {% elif grupo.periodicidad == '1' %} Semestrales
+                        {% elif grupo.periodicidad == '2' %} Bimestrales
                         {% else %} Otro {% endif %}: 
                         <strong>{{ grupo.total }}</strong> cursos
                     </li>

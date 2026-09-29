@@ -1,24 +1,72 @@
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
+from django.contrib.auth.models import AbstractUser, Group
+from django.conf import settings
 
-class Rol(models.Model):
-    id_rol = models.AutoField(primary_key=True)
-    nombre_rol = models.CharField(max_length=50)
-    descripcion = models.CharField(max_length=255, null=True, blank=True)
+
+class NombreRol:
+    ADMIN = "Administrador"
+    COORDINADOR = "Coordinador Académico"
+    JEFE_CARRERA = "Jefe de Carrera"
+    DOCENTE = "Docente"
+    ASISTENTE = "Asistente de Gestión"
+
+    CHOICES = [
+        (ADMIN, ADMIN),
+        (COORDINADOR, COORDINADOR),
+        (JEFE_CARRERA, JEFE_CARRERA),
+        (DOCENTE, DOCENTE),
+        (ASISTENTE, ASISTENTE),
+    ]
+
+
+class Usuario(AbstractUser):
+    rut = models.CharField(max_length=15, null=True, blank=True, unique=True)
+    telefono = models.CharField(max_length=30, null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'Usuario'
+        verbose_name_plural = 'Usuarios'
 
     def __str__(self):
-        return self.nombre_rol
+        return f"{self.get_full_name()} ({self.username})"
 
-class Usuario(models.Model):
-    id_usuario = models.BigAutoField(primary_key=True)
-    rol = models.ForeignKey(Rol, on_delete=models.CASCADE, db_column='id_rol')
-    nombre_completo = models.CharField(max_length=150)
-    correo_usuario = models.CharField(max_length=150)
-    hash_password = models.CharField(max_length=255)
-    estado_activo = models.BooleanField(default=True)
+    @property
+    def nombre_completo(self):
+        return self.get_full_name()
 
-    def __str__(self):
-        return self.nombre_completo
+    @property
+    def correo_usuario(self):
+        return self.email
+
+    @property
+    def estado_activo(self):
+        return self.is_active
+
+    @property
+    def rol_principal(self):
+        primer_grupo = self.groups.first()
+        return primer_grupo.name if primer_grupo else "Sin Rol"
+
+    @property
+    def roles(self):
+        return list(self.groups.values_list('name', flat=True))
+
+    def tiene_rol(self, nombre_rol):
+        return self.groups.filter(name=nombre_rol).exists()
+
+    def agregar_rol(self, nombre_rol):
+        grupo, _ = Group.objects.get_or_create(name=nombre_rol)
+        self.groups.add(grupo)
+        return grupo
+
+    def quitar_rol(self, nombre_rol):
+        try:
+            grupo = Group.objects.get(name=nombre_rol)
+            self.groups.remove(grupo)
+            return True
+        except Group.DoesNotExist:
+            return False
 
 class Carrera(models.Model):
     id_carrera = models.BigAutoField(primary_key=True)
@@ -57,50 +105,42 @@ class Curso(models.Model):
     programa = models.ForeignKey('Programa', on_delete=models.CASCADE, db_column='id_programa')
     codigo_asignatura = models.CharField(max_length=50)
     nombre_asignatura = models.CharField(max_length=150)
-    
-    # Nivel cronológico en la malla (SIEMPRE enteros puros)
+
     semestres = ArrayField(models.IntegerField(), default=list)
-    
-    Periodicidad = models.CharField(max_length=50, choices=PERIODICIDAD_CHOICES, default='1')
-    
-    # Fracción del periodo en la que se dicta
+
+    periodicidad = models.CharField(max_length=50, choices=PERIODICIDAD_CHOICES, default='1')
+
     subperiodo = models.CharField(max_length=15, choices=SUBPERIODO_CHOICES, default='COMPLETO')
-    
-    Creditos = models.IntegerField(default=0)
-    modulos_teoricos = models.IntegerField(null=True, blank=True)
-    modulos_practicos = models.IntegerField(null=True, blank=True)
-    modulos_ayudantia_1 = models.IntegerField(null=True, blank=True)
-    modulos_ayudantia_2 = models.IntegerField(null=True, blank=True)
-    cupo_max_seccion = models.IntegerField()
-    es_bolsa = models.BooleanField()
+
+    creditos = models.PositiveIntegerField(default=0)
+    modulos_teoricos = models.PositiveIntegerField(null=True, blank=True)
+    modulos_practicos = models.PositiveIntegerField(null=True, blank=True)
+    modulos_ayudantia_1 = models.PositiveIntegerField(null=True, blank=True)
+    modulos_ayudantia_2 = models.PositiveIntegerField(null=True, blank=True)
+    cupo_max_seccion = models.PositiveIntegerField()
+    es_bolsa = models.BooleanField(default=False)
 
     def __str__(self):
         return self.nombre_asignatura
 
     @property
     def nombre_periodo_formateado(self):
-        """
-        Se encarga exclusivamente de la capa de presentación.
-        Traduce la estructura pura de la base de datos a lenguaje humano.
-        """
         if not self.semestres:
             return ""
-            
+
         str_sem = [str(s) for s in self.semestres]
         base_str = ""
 
-        # 1. Resolver el nivel cronológico (conservando la disyunción 'o' para renovaciones de malla complejas)
         if len(self.semestres) == 1:
             base_str = str_sem[0]
-        elif self.Periodicidad == '0': 
+        elif self.periodicidad == '0':
             base_str = " y ".join(str_sem)
-        else: 
+        else:
             base_str = " o ".join(str_sem)
-            
-        # 2. Agregar el sufijo bimestral si corresponde
-        if self.Periodicidad == '2' and self.subperiodo in ['A', 'B']:
+
+        if self.periodicidad == '2' and self.subperiodo in ['A', 'B']:
             return f"{base_str}{self.subperiodo.lower()}"
-            
+
         return base_str
 
 class BolsaDetalle(models.Model):
@@ -127,6 +167,9 @@ class Seccion(models.Model):
     periodo = models.ForeignKey(Periodo, on_delete=models.CASCADE, db_column='id_periodo')
     curso = models.ForeignKey(Curso, on_delete=models.CASCADE, db_column='id_curso')
     nrc_seccion = models.CharField(max_length=20)
+
+    class Meta:
+        unique_together = [('periodo', 'curso', 'nrc_seccion')]
 
     def __str__(self):
         return f"NRC: {self.nrc_seccion} - {self.curso.nombre_asignatura}"
@@ -157,6 +200,7 @@ class Docente(models.Model):
     id_docente = models.CharField(max_length=20, primary_key=True)
     categoria = models.ForeignKey(CategoriaDocente, on_delete=models.CASCADE, db_column='id_categoria')
     nombre_completo = models.CharField(max_length=150)
+    tipo_personal = models.CharField(max_length=30, default="")
 
     def __str__(self):
         return self.nombre_completo
@@ -164,12 +208,15 @@ class Docente(models.Model):
 class AsignacionDocente(models.Model):
     id_asignacion = models.AutoField(primary_key=True)
     docente = models.ForeignKey(Docente, on_delete=models.CASCADE, db_column='id_docente')
-    componente = models.ForeignKey(SeccionComponente, on_delete=models.CASCADE, db_column='id_componente')
-    usuario_asignador = models.ForeignKey(Usuario, on_delete=models.CASCADE, db_column='id_usuario_asignador')
+    componente = models.ForeignKey(SeccionComponente, on_delete=models.CASCADE, db_column='id_componente', related_name='asignaciones')
+    usuario_asignador = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, db_column='id_usuario_asignador', related_name='asignaciones_realizadas')
     costo_proyectado = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
 
+    class Meta:
+        unique_together = [('componente', 'docente')]
+
 class Alumno(models.Model):
-    id_alumno = models.BigAutoField(primary_key=True)
+    id_alumno = models.CharField(primary_key=True, max_length=15)
     nombre_alumno = models.CharField(max_length=150)
     correo_alumno = models.CharField(max_length=150)
 
@@ -180,4 +227,5 @@ class Matricula(models.Model):
     id_matricula = models.BigAutoField(primary_key=True)
     alumno = models.ForeignKey(Alumno, on_delete=models.CASCADE, db_column='id_alumno')
     programa = models.ForeignKey(Programa, on_delete=models.CASCADE, db_column='id_programa')
+    anio_ingreso = models.IntegerField(default=0)
     estatus = models.CharField(max_length=50)

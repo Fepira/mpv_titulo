@@ -1,0 +1,80 @@
+{% load static %}
+{% for entrada in cursos_agrupados %}
+{% with curso=entrada.curso secciones=entrada.secciones total_costo_curso=entrada.total_costo total_asig_curso=entrada.total_asignaciones %}
+<tr class="hover:bg-uft-light/30 transition cursor-pointer group" onclick="toggleRow('row-curso-{{ curso.id_curso }}', 'icon-curso-{{ curso.id_curso }}')">
+    <td class="w-10 px-3 py-4 text-center text-uft-cyan">
+        <i id="icon-curso-{{ curso.id_curso }}" class="ph-fill ph-caret-right text-lg transition-transform"></i>
+    </td>
+    <td class="px-4 py-4 font-medium text-uft-gray text-xs">
+        {{ curso.programa.codigo_programa|default:curso.programa.nombre_programa|default:""|truncatechars:15 }}
+    </td>
+    <td class="px-4 py-4 font-bold text-uft-black">{{ curso.codigo_asignatura }}</td>
+    <td class="px-4 py-4 text-uft-gray text-xs">
+        {% if curso.semestres %}{{ curso.semestres|join:", " }}{% else %}-{% endif %}
+    </td>
+    <td class="px-4 py-4 font-medium">{{ curso.nombre_asignatura }}</td>
+    <td class="px-4 py-4 text-center font-bold text-uft-cyan bg-uft-cyan/5">{{ secciones|length }}</td>
+    <td class="px-3 py-4 text-center text-uft-gray bg-uft-cyan/5">{{ curso.modulos_teoricos|default:0 }}</td>
+    <td class="px-3 py-4 text-center text-uft-gray bg-uft-cyan/5">{{ curso.modulos_practicos|default:0 }}</td>
+    <td class="px-3 py-4 text-center text-uft-gray bg-uft-cyan/5">{{ curso.modulos_ayudantia_1|default:0 }}</td>
+    <td class="px-3 py-4 text-center text-uft-gray bg-uft-cyan/5 border-r border-uft-cyan/20">{{ curso.modulos_ayudantia_2|default:0 }}</td>
+    <td class="px-6 py-4 text-right font-serif font-bold text-lg text-facultad-green">${{ total_costo_curso|default:0 }}</td>
+    <td class="px-4 py-4 text-center w-20">
+        <form method="POST" class="inline-block" onclick="event.stopPropagation()">
+            {% csrf_token %}
+            <input type="hidden" name="accion" value="agregar_seccion">
+            <input type="hidden" name="id_curso" value="{{ curso.id_curso }}">
+            <button type="submit" title="Agregar sección a {{ curso.codigo_asignatura }}" class="text-uft-gray hover:text-uft-cyan transition p-1">
+                <i class="ph ph-plus-circle text-lg"></i>
+            </button>
+        </form>
+        {% if not es_detalle_curso %}
+        <a href="{% url 'apiDemanda:gestionar_programacion_curso' periodo.id_periodo curso.id_curso %}"
+           title="Ver solo este curso"
+           class="text-uft-gray hover:text-uft-cyan transition p-1 inline-block"
+           onclick="event.stopPropagation()">
+            <i class="ph ph-arrow-up-right text-lg"></i>
+        </a>
+        {% endif %}
+    </td>
+</tr>
+
+<tr id="row-curso-{{ curso.id_curso }}" class="hidden bg-[#f4f7f8]">
+    <td colspan="12" class="p-0 border-l-4 border-uft-cyan">
+        <div class="px-10 py-4 shadow-inner">
+            <div class="flex justify-between items-center mb-3">
+                <h4 class="text-xs font-bold text-uft-cyan uppercase tracking-widest flex items-center gap-2">
+                    <i class="ph ph-books text-base"></i>
+                    Desglose de Secciones ({{ curso.codigo_asignatura }} — {{ total_asig_curso }} asignaciones)
+                </h4>
+                <form method="POST" class="inline-flex">
+                    {% csrf_token %}
+                    <input type="hidden" name="accion" value="agregar_seccion">
+                    <input type="hidden" name="id_curso" value="{{ curso.id_curso }}">
+                    <button type="submit" class="text-xs font-bold bg-uft-white border border-uft-cyan text-uft-cyan px-3 py-1.5 rounded hover:bg-uft-cyan hover:text-white transition flex items-center gap-1.5 shadow-sm">
+                        <i class="ph ph-plus"></i> Agregar Sección
+                    </button>
+                </form>
+            </div>
+
+            {% include "apiDemanda/_tabla_secciones.html" with periodo=periodo secciones=secciones curso_default=curso %}
+
+            {% if not secciones %}
+                <div class="text-center py-10 bg-uft-white rounded-lg border border-dashed border-uft-light">
+                    <i class="ph ph-calendar-x text-4xl text-uft-gray/40 mb-2 block"></i>
+                    <p class="text-uft-gray font-semibold text-sm mb-3">Sin secciones creadas para este curso.</p>
+                    <form method="POST" class="inline-block">
+                        {% csrf_token %}
+                        <input type="hidden" name="accion" value="agregar_seccion">
+                        <input type="hidden" name="id_curso" value="{{ curso.id_curso }}">
+                        <button type="submit" class="bg-uft-cyan text-uft-white px-5 py-2 rounded-lg font-bold hover:bg-opacity-90 transition shadow-sm flex items-center gap-2 mx-auto text-sm">
+                            <i class="ph ph-plus-circle"></i> Crear primera sección
+                        </button>
+                    </form>
+                </div>
+            {% endif %}
+        </div>
+    </td>
+</tr>
+{% endwith %}
+{% endfor %}

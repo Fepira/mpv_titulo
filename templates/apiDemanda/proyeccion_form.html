@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Proyeccion de Demanda Academica</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 900px; margin: 30px auto; padding: 20px; background: #f5f7fa; }
+        .card { background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,.08); }
+        .row { display: flex; gap: 15px; align-items: center; margin: 15px 0; flex-wrap: wrap; }
+        label { font-weight: bold; }
+        select, input[type=checkbox] { padding: 8px; font-size: 14px; }
+        button { padding: 10px 22px; background: #2c3e50; color: #fff; border: 0; border-radius: 4px; cursor: pointer; font-size: 15px; }
+        button:hover { background: #1a252f; }
+        .msg { padding: 10px 14px; border-radius: 4px; margin-bottom: 15px; }
+        .msg.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .msg.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .tag { display: inline-block; background: #3498db; color: #fff; padding: 3px 9px; border-radius: 3px; font-size: 12px; margin-left: 8px; }
+        .tag.ok { background: #27ae60; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Proyeccion de Demanda Academica</h2>
+        <p>Selecciona el periodo (formato YYYY10 = 1er sem, YYYY20 = 2do sem) para proyectar alumnos, secciones y componentes.</p>
+
+        {% if messages %}
+            {% for m in messages %}
+                <div class="msg {{ m.tags }}">{{ m }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="post" action="{% url 'apiDemanda:proyeccion_demanda_ejecutar' %}">
+            {% csrf_token %}
+
+            <div class="row">
+                <div style="flex: 1; min-width: 300px;">
+                    <label>Periodo a proyectar:</label><br>
+                    <select name="id_periodo" required style="width: 100%; margin-top: 5px;">
+                        <option value="">--- Seleccionar ---</option>
+                        {% for p in periodos %}
+                            <option value="{{ p.id_periodo }}">
+                                #{{ p.id_periodo }} - {{ p.nombre_periodo }}
+                                {% if p.total_estimaciones %}
+                                    <span class="tag ok">ya tiene {{ p.total_estimaciones }} est.</span>
+                                {% endif %}
+                            </option>
+                        {% empty %}
+                            <option value="">No hay periodos creados.</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="row">
+                <label>
+                    <input type="checkbox" name="sobrescribir" value="si" checked>
+                    Sobrescribir datos ya calculados (borra estimaciones + secciones viejas)
+                </label>
+            </div>
+
+            <div class="row">
+                <button type="submit">EJECUTAR PROYECCION</button>
+            </div>
+        </form>
+
+        <hr style="margin: 30px 0;">
+
+        <h3>Acciones rapidas:</h3>
+        <ul>
+            {% for p in periodos %}
+                <li>
+                    <a href="{% url 'apiDemanda:proyeccion_resultados' p.id_periodo %}">
+                        Ver resultados del periodo {{ p.nombre_periodo }}
+                    </a>
+                    {% if p.total_secciones %}
+                        ({{ p.total_secciones }} secciones creadas)
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+</body>
+</html>
