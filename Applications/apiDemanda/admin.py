@@ -17,7 +17,9 @@ class CursoAdmin(admin.ModelAdmin):
         'semestres',
         'periodicidad',
         'subperiodo',
-        'creditos'
+        'creditos',
+        'tipo_sala',
+        'lista_cruzada'
     )
 
     list_select_related = ('programa',)
@@ -26,7 +28,8 @@ class CursoAdmin(admin.ModelAdmin):
         'programa',
         'periodicidad',
         'subperiodo',
-        'es_bolsa'
+        'es_bolsa',
+        'tipo_sala'
     )
 
     search_fields = (
@@ -38,7 +41,8 @@ class CarreraAdmin(admin.ModelAdmin):
     list_display = (
         'id_carrera',
         'nombre_carrera',
-        'cuota_sala_comun'
+        'cuota_sala_comun',
+        'cuota_sala_propia'
     )
 
 
@@ -105,6 +109,7 @@ class EstimacionDemandaAdmin(admin.ModelAdmin):
         'alumnos_proyectados',
         'secciones_calculadas'
     )
+    list_filter = ('periodo',)
 
 class SeccionComponenteAdmin(admin.ModelAdmin):
     list_display = (
@@ -118,8 +123,30 @@ class SeccionAdmin(admin.ModelAdmin):
         'id_seccion',
         'periodo',
         'curso',
-        'nrc_seccion'
+        'nrc_seccion',
+        'dia_fijo',
+        'modulo_inicio_fijo'
     )
+    list_filter = ('periodo', 'dia_fijo')
+
+class BolsaDetalleAdmin(admin.ModelAdmin):
+    list_display = (
+        'id_detalle',
+        'curso_bolsa',
+        'curso_real',
+        'tipo_curso_bolsa',
+        'mencion'
+    )
+    list_filter = ('tipo_curso_bolsa',)
+
+class MencionAdmin(admin.ModelAdmin):
+    list_display = (
+        'id_mencion',
+        'programa',
+        'nombre',
+        'activo'
+    )
+    list_filter = ('programa',)
 
 
 admin.site.register(Carrera, CarreraAdmin)
@@ -135,4 +162,7 @@ admin.site.register(AsignacionDocente)
 admin.site.register(Usuario, UsuarioAdmin)
 admin.site.register(EstimacionDemanda, EstimacionDemandaAdmin)
 admin.site.register(SeccionComponente, SeccionComponenteAdmin)
+admin.site.register(BolsaDetalle, BolsaDetalleAdmin)
+admin.site.register(Mencion, MencionAdmin)
+
 

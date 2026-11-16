@@ -1,82 +1,278 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Proyeccion de Demanda Academica</title>
-    <style>
-        body { font-family: Arial, sans-serif; max-width: 900px; margin: 30px auto; padding: 20px; background: #f5f7fa; }
-        .card { background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,.08); }
-        .row { display: flex; gap: 15px; align-items: center; margin: 15px 0; flex-wrap: wrap; }
-        label { font-weight: bold; }
-        select, input[type=checkbox] { padding: 8px; font-size: 14px; }
-        button { padding: 10px 22px; background: #2c3e50; color: #fff; border: 0; border-radius: 4px; cursor: pointer; font-size: 15px; }
-        button:hover { background: #1a252f; }
-        .msg { padding: 10px 14px; border-radius: 4px; margin-bottom: 15px; }
-        .msg.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .msg.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .tag { display: inline-block; background: #3498db; color: #fff; padding: 3px 9px; border-radius: 3px; font-size: 12px; margin-left: 8px; }
-        .tag.ok { background: #27ae60; }
-    </style>
-</head>
-<body>
-    <div class="card">
-        <h2>Proyeccion de Demanda Academica</h2>
-        <p>Selecciona el periodo (formato YYYY10 = 1er sem, YYYY20 = 2do sem) para proyectar alumnos, secciones y componentes.</p>
+{% extends "base_app.html" %}
 
+{% block title %}Proyección de Demanda{% endblock %}
+
+{% block content %}
+    <header class="bg-uft-black text-white py-5 px-6 shadow">
+        <div class="max-w-6xl mx-auto flex items-center justify-between flex-wrap gap-3">
+            <div>
+                <a href="{% url 'apiDemanda:home' %}" class="text-2xl font-extrabold tracking-wide hover:text-uft-cyan transition">
+                    UFT · Planificación Académica
+                </a>
+                <div class="text-sm text-uft-light/90 mt-1">Proyección de demanda estudiantil</div>
+            </div>
+            <div class="text-xs text-uft-light/90">
+                {% if user.is_authenticated %}
+                Conectado como: <strong>{{ user.username }}</strong>
+                {% else %}
+                <a href="{% url 'apiDemanda:login' %}" class="underline hover:text-uft-gold">Iniciar sesión</a>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto mt-8 px-4 sm:px-6">
+        <!-- Mensajes flash -->
         {% if messages %}
+        <div class="space-y-2 mb-6">
             {% for m in messages %}
-                <div class="msg {{ m.tags }}">{{ m }}</div>
+                <div class="px-4 py-3 rounded-lg border
+                    {% if m.tags == 'error' %}   bg-red-50   text-red-800   border-red-200
+                    {% elif m.tags == 'warning' %} bg-yellow-50 text-yellow-900 border-yellow-300
+                    {% else %}                      bg-green-50  text-green-800 border-green-200
+                    {% endif %}">
+                    {{ m }}
+                </div>
             {% endfor %}
+        </div>
         {% endif %}
 
-        <form method="post" action="{% url 'apiDemanda:proyeccion_demanda_ejecutar' %}">
+        <h1 class="text-3xl font-extrabold text-uft-black mb-6">Proyección de Demanda</h1>
+
+        <!-- ============== UNICO FORMULARIO ============== -->
+        <form method="post" action="{% url 'apiDemanda:proyeccion_demanda_ejecutar' %}" class="space-y-6">
             {% csrf_token %}
 
-            <div class="row">
-                <div style="flex: 1; min-width: 300px;">
-                    <label>Periodo a proyectar:</label><br>
-                    <select name="id_periodo" required style="width: 100%; margin-top: 5px;">
-                        <option value="">--- Seleccionar ---</option>
-                        {% for p in periodos %}
-                            <option value="{{ p.id_periodo }}">
-                                #{{ p.id_periodo }} - {{ p.nombre_periodo }}
-                                {% if p.total_estimaciones %}
-                                    <span class="tag ok">ya tiene {{ p.total_estimaciones }} est.</span>
-                                {% endif %}
-                            </option>
-                        {% empty %}
-                            <option value="">No hay periodos creados.</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
+            <!-- SECCION 1: Elegir periodo (SIMPLE) -->
+            <section class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h2 class="text-lg font-bold text-uft-black mb-4 flex items-center gap-2">
+                    <span class="w-7 h-7 rounded-full bg-uft-cyan text-white text-sm flex items-center justify-center">1</span>
+                    Elegir período
+                </h2>
 
-            <div class="row">
-                <label>
-                    <input type="checkbox" name="sobrescribir" value="si" checked>
-                    Sobrescribir datos ya calculados (borra estimaciones + secciones viejas)
+                <label class="block text-sm font-semibold text-gray-800 mb-2">
+                    Período (elige uno y se actualiza solo la página):
                 </label>
-            </div>
 
-            <div class="row">
-                <button type="submit">EJECUTAR PROYECCION</button>
-            </div>
+                <select
+                    name="periodo"
+                    required
+                    onchange="if (this.value) window.location.href='{% url 'apiDemanda:proyeccion_demanda_form' %}?periodo=' + this.value"
+                    class="w-full max-w-2xl rounded-lg border border-gray-300 bg-white px-4 py-3 text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-uft-cyan focus:border-uft-cyan transition">
+                    <option value="">--- Seleccionar período ---</option>
+                    {% for p in periodos %}
+                        <option value="{{ p.id_periodo }}"
+                            {% if periodo_seleccionado and periodo_seleccionado.id_periodo == p.id_periodo %}selected{% endif %}>
+                            #{{ p.id_periodo }}  —  {{ p.nombre_periodo }}
+                            {% if p.total_secciones or p.total_estimaciones %}
+                                (ya tiene {{ p.total_secciones|default:0 }} secciones / {{ p.total_estimaciones|default:0 }} estimaciones)
+                            {% endif %}
+                        </option>
+                    {% empty %}
+                        <option value="">No hay períodos creados → crealos desde /admin</option>
+                    {% endfor %}
+                </select>
+
+                <p class="text-xs text-gray-500 mt-2">
+                    Fecha actual del sistema: <strong>año {{ anio_actual }}</strong>.
+                    La tabla de alumnos nuevos se mostrará automáticamente cuando el año del período sea <strong>mayor que {{ anio_actual }}</strong>.
+                </p>
+
+                {% if periodo_seleccionado %}
+                    <div class="mt-4 inline-flex items-center gap-2 rounded-lg border
+                        {% if mostrar_tabla_ingresos %} border-green-300 bg-green-50 text-green-900
+                        {% else %} border-gray-300 bg-gray-50 text-gray-700
+                        {% endif %} px-4 py-2 text-sm">
+                        {% if mostrar_tabla_ingresos %}
+                            ✅ <strong>PERÍODO FUTURO DETECTADO</strong> ({{ periodo_seleccionado.nombre_periodo }})
+                            → abajo aparece la tabla para ingresar alumnos nuevos.
+                        {% else %}
+                            ℹ️  Período elegido: <strong>{{ periodo_seleccionado.nombre_periodo }}</strong>
+                            (no es futuro respecto a {{ anio_actual }}). Se usan solo matrículas reales.
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </section>
+
+            <!-- SECCION 2: Sobrescribir (SIMPLE) -->
+            <section class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h2 class="text-lg font-bold text-uft-black mb-4 flex items-center gap-2">
+                    <span class="w-7 h-7 rounded-full bg-uft-cyan text-white text-sm flex items-center justify-center">2</span>
+                    Opciones
+                </h2>
+
+                <label class="flex items-start gap-3 cursor-pointer max-w-xl p-3 rounded-lg hover:bg-gray-50 transition border border-transparent hover:border-gray-200">
+                    <input
+                        type="checkbox"
+                        name="sobrescribir"
+                        value="si"
+                        {% if not periodo_seleccionado or periodo_seleccionado.total_estimaciones or periodo_seleccionado.total_secciones %}checked{% endif %}
+                        class="mt-0.5 h-5 w-5 accent-uft-cyan">
+                    <div>
+                        <div class="font-semibold text-gray-900">Sobrescribir datos existentes</div>
+                        <div class="text-xs text-gray-600 mt-1 leading-relaxed">
+                            Si el período ya tiene estimaciones / secciones, se borran todo antes de volver a calcular.
+                            (Se limpian: AsignacionesDocente, Horarios, Componentes, Secciones, Estimaciones).
+                        </div>
+                    </div>
+                </label>
+            </section>
+
+            <!-- SECCION 3: Tabla de ingresos nuevos (SOLO si periodo futuro) -->
+            {% if mostrar_tabla_ingresos %}
+            <section class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h2 class="text-lg font-bold text-uft-black mb-1 flex items-center gap-2">
+                    <span class="w-7 h-7 rounded-full bg-uft-gold text-uft-black text-sm flex items-center justify-center">3</span>
+                    Alumnos nuevos (ingresos proyectados)
+                </h2>
+                <p class="text-sm text-gray-600 mb-4 ml-9">
+                    Por cada programa <strong>VIGENTE</strong>, ingresa cuántos alumnos nuevos esperas recibir en este período.
+                    "Sugerido" = alumnos reales ingresados el año pasado.
+                </p>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm border-collapse">
+                        <thead>
+                            <tr class="bg-uft-black text-white">
+                                <th class="px-4 py-3 text-left rounded-tl-lg">Carrera · Programa</th>
+                                <th class="px-3 py-3 text-center">Versión</th>
+                                <th class="px-3 py-3 text-center">Cohorte</th>
+                                <th class="px-3 py-3 text-right">Sugerido<br><span class="text-xs font-normal text-uft-light/80">(año anterior)</span></th>
+                                <th class="px-4 py-3 text-right rounded-tr-lg">
+                                    TUS ALUMNOS NUEVOS
+                                    <span class="block text-xs font-normal text-uft-light/80">ingresa el número</span>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            {% for prog in programas_vigentes_con_sugerencia %}
+                            <tr class="hover:bg-uft-light/20 transition">
+                                <td class="px-4 py-3">
+                                    <div class="font-semibold text-gray-900">{{ prog.carrera.nombre_carrera }}</div>
+                                    <div class="text-xs text-gray-500 mt-0.5">{{ prog.cod_programa }} · {{ prog.nombre_programa }}</div>
+                                </td>
+                                <td class="px-3 py-3 text-center font-mono text-xs text-gray-600 bg-uft-light/30 rounded mx-1 inline-block my-1">
+                                    {{ prog.version|default:"1.0.0" }}
+                                </td>
+                                <td class="px-3 py-3 text-center font-mono">
+                                    {{ prog.cohorte|default:"-" }}
+                                </td>
+                                <td class="px-3 py-3 text-right font-mono text-gray-600">
+                                    {{ prog.valor_sugerido|default:0 }}
+                                </td>
+                                <td class="px-4 py-3 text-right">
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        name="proyeccion_nuevo_ingreso_{{ prog.id_programa }}"
+                                        data-sugerido="{{ prog.valor_sugerido|default:0 }}"
+                                        value="{{ prog.valor_sugerido|default:0 }}"
+                                        data-prog-ingreso
+                                        class="w-40 text-right rounded-lg border border-gray-300 px-3 py-2 text-lg font-bold text-uft-black focus:outline-none focus:ring-2 focus:ring-uft-gold focus:border-uft-gold transition">
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="px-4 py-8 text-center text-gray-500">
+                                    No hay programas VIGENTES en la base.
+                                    Entrá a <code>/admin</code> y marcá algún programa como <code>estado='VIGENTE'</code>.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        {% if programas_vigentes_con_sugerencia %}
+                        <tfoot>
+                            <tr class="bg-uft-cyan/10 border-t-2 border-uft-cyan font-bold">
+                                <td colspan="4" class="px-4 py-3 text-right text-gray-800">
+                                    TOTAL alumnos nuevos proyectados:
+                                </td>
+                                <td class="px-4 py-3 text-right text-2xl text-uft-black font-extrabold">
+                                    <span id="total-ingresos-nuevos">0</span>
+                                </td>
+                            </tr>
+                            {% if programas_vigentes_con_sugerencia %}
+                            <tr>
+                                <td colspan="5" class="px-4 py-3 text-right">
+                                    <div class="inline-flex flex-wrap gap-2">
+                                        <button
+                                            type="button"
+                                            onclick="document.querySelectorAll('input[data-prog-ingreso]').forEach(function(i){ i.value = 0; }); actualizarTotal();"
+                                            class="px-3 py-1.5 text-sm rounded-md border border-gray-300 hover:bg-gray-100 text-gray-800 transition font-medium">
+                                            Poner todos en 0
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onclick="document.querySelectorAll('input[data-prog-ingreso]').forEach(function(i){ i.value = i.hasAttribute('data-sugerido') ? i.getAttribute('data-sugerido') : i.value; }); actualizarTotal();"
+                                            class="px-3 py-1.5 text-sm rounded-md border border-uft-cyan/50 bg-uft-cyan/10 hover:bg-uft-cyan hover:text-white transition text-uft-black font-medium">
+                                            Usar sugerencias (cohorte anterior)
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endif %}
+                        </tfoot>
+                        {% endif %}
+                    </table>
+                </div>
+            </section>
+            {% endif %}
+
+            <!-- SECCION 4: Submit -->
+            <section class="bg-uft-black rounded-xl shadow-lg p-6 flex flex-wrap items-center justify-between gap-4">
+                <div class="text-white/90 text-sm max-w-2xl">
+                    Cuando estés listo → apreta <strong>Ejecutar proyección</strong>.
+                    {% if periodo_seleccionado %}
+                        Período seleccionado: <strong class="text-uft-gold">{{ periodo_seleccionado.nombre_periodo }}</strong>
+                    {% endif %}
+                </div>
+                <button
+                    type="submit"
+                    class="inline-flex items-center gap-2 rounded-lg bg-uft-gold hover:bg-yellow-400 transition px-6 py-3 text-uft-black font-bold shadow-lg">
+                    ▶️  Ejecutar proyección
+                </button>
+            </section>
         </form>
 
-        <hr style="margin: 30px 0;">
-
-        <h3>Acciones rapidas:</h3>
-        <ul>
-            {% for p in periodos %}
-                <li>
-                    <a href="{% url 'apiDemanda:proyeccion_resultados' p.id_periodo %}">
-                        Ver resultados del periodo {{ p.nombre_periodo }}
-                    </a>
-                    {% if p.total_secciones %}
-                        ({{ p.total_secciones }} secciones creadas)
+        <!-- Acciones rápidas -->
+        {% if periodos %}
+        <section class="mt-8 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h3 class="text-base font-bold text-uft-black mb-3">Ver resultados anteriores</h3>
+            <ul class="grid sm:grid-cols-2 gap-2 text-sm">
+                {% for p in periodos %}
+                    {% if p.total_secciones or p.total_estimaciones %}
+                    <li>
+                        <a href="{% url 'apiDemanda:proyeccion_resultados' p.id_periodo %}"
+                           class="flex items-center justify-between px-4 py-3 rounded-lg border border-gray-200 hover:border-uft-cyan hover:bg-uft-cyan/5 transition">
+                            <span class="font-semibold">{{ p.nombre_periodo }}</span>
+                            <span class="text-xs text-gray-500">
+                                {{ p.total_secciones|default:0 }} secciones ·
+                                {{ p.total_estimaciones|default:0 }} estimaciones →
+                            </span>
+                        </a>
+                    </li>
                     {% endif %}
-                </li>
-            {% endfor %}
-        </ul>
-    </div>
-</body>
-</html>
+                {% endfor %}
+            </ul>
+        </section>
+        {% endif %}
+    </main>
+
+    <script>
+        function actualizarTotal() {
+            let total = 0;
+            const inputs = document.querySelectorAll('input[data-prog-ingreso]');
+            inputs.forEach(function (i) {
+                let v = parseInt(i.value || "0", 10);
+                if (!isNaN(v) && v > 0) total += v;
+            });
+            const el = document.getElementById('total-ingresos-nuevos');
+            if (el) el.textContent = total.toLocaleString('es-CL');
+        }
+        document.addEventListener('DOMContentLoaded', function () {
+            const inputs = document.querySelectorAll('input[data-prog-ingreso]');
+            inputs.forEach(function (i) { i.addEventListener('input', actualizarTotal); });
+            actualizarTotal();
+        });
+    </script>
+{% endblock %}

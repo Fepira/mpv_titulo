@@ -1,0 +1,200 @@
+{% extends "base_app.html" %}
+
+{% block title %}Ventanas horarias - {{ periodo.nombre_periodo }}{% endblock %}
+
+{% block content %}
+
+<main class="min-h-screen">
+    <header class="bg-uft-white border-b border-uft-light px-8 py-6 sticky top-0 z-30 shadow-sm flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
+        <div>
+            <nav class="flex text-xs text-uft-gray mb-2 font-medium">
+                <ol class="inline-flex items-center space-x-1 md:space-x-2">
+                    <li><a href="{% url 'apiProgramacion:configuracion_periodo' periodo.id_periodo %}" class="hover:text-uft-cyan transition">Programación {{ periodo.nombre_periodo }}</a></li>
+                    <li><span class="mx-1">/</span></li>
+                    <li class="text-uft-black">Ventanas horarias</li>
+                </ol>
+            </nav>
+            <h1 class="font-serif text-3xl text-uft-black leading-tight">Ventanas horarias del periodo</h1>
+            <p class="text-xs text-uft-gray mt-1">
+                Módulos del día en que puede programarse cada semestre y tipo de asignatura.
+            </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+            {% if puede_configurar_ag %}
+                <a href="{% url 'apiProgramacion:parametros_ag' %}"
+                   class="inline-flex items-center gap-2 text-sm font-semibold text-uft-gray hover:text-uft-black transition">
+                    <i class="ph ph-sliders-horizontal"></i> Parámetros del AG
+                </a>
+            {% endif %}
+            <div class="bg-uft-light/50 border border-uft-light rounded-lg px-3 py-2 flex items-center gap-2">
+                <span class="text-xs text-uft-gray font-medium">Periodo:</span>
+                {% url 'apiProgramacion:parametros_periodo' 999999999 as url_tpl_periodo %}
+                <select id="periodo-selector"
+                        data-url-template="{{ url_tpl_periodo|default:'/0/' }}"
+                        data-placeholder="999999999"
+                        onchange="
+                            const tpl = this.dataset.urlTemplate;
+                            const ph = this.dataset.placeholder;
+                            if (this.value && tpl.includes(ph)) {
+                                window.location = tpl.replace(ph, this.value);
+                            }
+                        "
+                        class="bg-transparent text-sm font-semibold text-uft-black focus:outline-none cursor-pointer">
+                    {% for p in periodos_all %}
+                        <option value="{{ p.id_periodo }}" {% if p.id_periodo == periodo.id_periodo %}selected{% endif %}>
+                            {{ p.nombre_periodo }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <div class="p-8">
+        {% if messages %}
+            <div class="mb-5 space-y-2 max-w-full">
+            {% for m in messages %}
+                {% if m.level == DEFAULT_MESSAGE_LEVELS.SUCCESS %}
+                    <div class="bg-green-50 border border-green-200 text-green-800 p-3 rounded-lg flex gap-2 items-start text-sm shadow-sm">
+                        <i class="ph-fill ph-check-circle text-lg text-green-600 shrink-0 mt-0.5"></i>
+                        <span>{{ m }}</span>
+                    </div>
+                {% elif m.level == DEFAULT_MESSAGE_LEVELS.WARNING %}
+                    <div class="bg-amber-50 border border-amber-200 text-amber-800 p-3 rounded-lg flex gap-2 items-start text-sm shadow-sm">
+                        <i class="ph-fill ph-warning text-lg text-amber-600 shrink-0 mt-0.5"></i>
+                        <span>{{ m }}</span>
+                    </div>
+                {% elif m.level == DEFAULT_MESSAGE_LEVELS.ERROR %}
+                    <div class="bg-red-50 border border-red-200 text-red-800 p-3 rounded-lg flex gap-2 items-start text-sm shadow-sm">
+                        <i class="ph-fill ph-x-circle text-lg text-red-600 shrink-0 mt-0.5"></i>
+                        <span>{{ m }}</span>
+                    </div>
+                {% else %}
+                    <div class="bg-blue-50 border border-blue-200 text-blue-800 p-3 rounded-lg flex gap-2 items-start text-sm shadow-sm">
+                        <i class="ph-fill ph-info text-lg text-blue-600 shrink-0 mt-0.5"></i>
+                        <span>{{ m }}</span>
+                    </div>
+                {% endif %}
+            {% endfor %}
+            </div>
+        {% endif %}
+
+        {% if error_ventanas %}
+            <div class="mb-5 bg-amber-50 border border-amber-200 text-amber-800 p-3 rounded-lg flex gap-2 items-start text-sm shadow-sm">
+                <i class="ph-fill ph-warning text-lg text-amber-600 shrink-0 mt-0.5"></i>
+                <span>{{ error_ventanas }} Guarda la configuración para actualizar la geometría.</span>
+            </div>
+        {% endif %}
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-uft-white border border-uft-light p-5 rounded-xl shadow-sm">
+                <div class="flex items-center justify-between mb-2">
+                    <h4 class="text-xs text-uft-gray uppercase tracking-wider font-semibold">Ventanas guardadas</h4>
+                    <i class="ph ph-clock text-uft-cyan text-xl"></i>
+                </div>
+                <div class="font-serif text-3xl font-bold text-uft-black">{{ total_ventanas }}</div>
+                <p class="text-xs text-uft-gray mt-1">Franjas configuradas en este periodo</p>
+            </div>
+            <div class="bg-uft-white border border-uft-light p-5 rounded-xl shadow-sm">
+                <div class="flex items-center justify-between mb-2">
+                    <h4 class="text-xs text-uft-gray uppercase tracking-wider font-semibold">Paquetes a programar</h4>
+                    <i class="ph ph-squares-four text-facultad-green text-xl"></i>
+                </div>
+                <div class="font-serif text-3xl font-bold text-uft-black">{{ total_genes }}</div>
+                <p class="text-xs text-uft-gray mt-1">Genes que recibirá el algoritmo genético</p>
+            </div>
+            <div class="bg-uft-white border border-uft-light p-5 rounded-xl shadow-sm">
+                <div class="flex items-center justify-between mb-2">
+                    <h4 class="text-xs text-uft-gray uppercase tracking-wider font-semibold">Jornada del edificio</h4>
+                    <i class="ph ph-buildings text-uft-cyan text-xl"></i>
+                </div>
+                <div class="font-serif text-3xl font-bold text-uft-black">
+                    {% if max_horas_edificio %}{{ max_horas_edificio }}{% else %}—{% endif %}
+                </div>
+                <p class="text-xs text-uft-gray mt-1">Módulos por día (máximo de las ventanas)</p>
+            </div>
+        </div>
+
+        {% if filas %}
+        <form method="post" action="{% url 'apiProgramacion:guardar_parametros' periodo.id_periodo %}" class="space-y-6">
+            {% csrf_token %}
+
+            <section class="bg-uft-white border border-uft-light rounded-xl shadow-sm p-6">
+                <h2 class="font-serif text-xl text-uft-black mb-1">Franjas por semestre y tipo</h2>
+                <p class="text-xs text-uft-gray mb-4">
+                    Cada fila define el rango de módulos (1-based) disponible para las asignaturas de ese grupo.
+                    La opción <strong>Transversal</strong> aplica a los cursos sin cohorte.
+                </p>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="bg-uft-light/60 text-uft-gray text-left text-xs uppercase tracking-wider">
+                                <th class="px-4 py-3 font-semibold">Semestre</th>
+                                <th class="px-4 py-3 font-semibold">Tipo</th>
+                                <th class="px-4 py-3 font-semibold text-center">Módulo inicio</th>
+                                <th class="px-4 py-3 font-semibold text-center">Módulo fin</th>
+                                <th class="px-4 py-3 font-semibold text-center">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-uft-light">
+                            {% for fila in filas %}
+                            <tr class="hover:bg-uft-light/30 transition">
+                                <td class="px-4 py-3 font-mono text-xs">
+                                    {% if fila.semestre == 0 %}—{% else %}{{ fila.semestre }}{% endif %}
+                                </td>
+                                <td class="px-4 py-3 font-semibold text-uft-black">{{ fila.nombre_tipo }}</td>
+                                <td class="px-4 py-3 text-center">
+                                    <input type="number" min="1" step="1" required
+                                           name="inicio__{{ fila.semestre }}__{{ fila.tipo }}"
+                                           value="{{ fila.modulo_inicio }}"
+                                           class="w-24 rounded-lg border border-uft-light bg-white px-3 py-2 text-sm font-mono text-center focus:outline-none focus:ring-2 focus:ring-uft-cyan focus:border-uft-cyan transition">
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <input type="number" min="1" step="1" required
+                                           name="fin__{{ fila.semestre }}__{{ fila.tipo }}"
+                                           value="{{ fila.modulo_fin }}"
+                                           class="w-24 rounded-lg border border-uft-light bg-white px-3 py-2 text-sm font-mono text-center focus:outline-none focus:ring-2 focus:ring-uft-cyan focus:border-uft-cyan transition">
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    {% if fila.configurada %}
+                                        <span class="inline-flex items-center gap-1 text-facultad-green text-xs font-semibold">
+                                            <i class="ph-fill ph-check-circle"></i> Guardada
+                                        </span>
+                                    {% else %}
+                                        <span class="inline-flex items-center gap-1 text-amber-600 text-xs font-semibold">
+                                            <i class="ph-fill ph-warning"></i> Sugerida
+                                        </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="bg-uft-black rounded-xl shadow-lg p-6 flex flex-wrap items-center justify-between gap-4">
+                <div class="text-white/90 text-sm max-w-2xl">
+                    Las ventanas se guardan para el periodo
+                    <strong class="text-uft-cyan">{{ periodo.nombre_periodo }}</strong>.
+                </div>
+                <button type="submit"
+                        class="inline-flex items-center gap-2 rounded-lg bg-uft-cyan hover:bg-uft-white hover:text-uft-black transition px-6 py-3 text-white font-bold shadow-lg">
+                    <i class="ph ph-floppy-disk text-lg"></i> Guardar ventanas
+                </button>
+            </section>
+        </form>
+        {% else %}
+        <div class="bg-uft-white border border-dashed border-uft-light rounded-xl p-12 text-center">
+            <i class="ph ph-calendar-x text-4xl text-uft-gray"></i>
+            <h3 class="font-serif text-xl text-uft-black mt-3">No hay paquetes que programar</h3>
+            <p class="text-sm text-uft-gray mt-1">
+                Ejecuta la <a href="{% url 'apiDemanda:proyeccion_demanda_form' %}" class="text-uft-cyan underline">proyección de demanda</a>
+                del periodo para generar las secciones.
+            </p>
+        </div>
+        {% endif %}
+    </div>
+</main>
+{% endblock %}

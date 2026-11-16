@@ -1,0 +1,197 @@
+{% extends "base_app.html" %}
+
+{% block title %}Configurar {{ curso.codigo_asignatura }} - {{ periodo.nombre_periodo }}{% endblock %}
+
+{% block content %}
+
+<main class="min-h-screen">
+    <header class="bg-uft-white border-b border-uft-light px-8 py-6 sticky top-0 z-30 shadow-sm flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
+        <div>
+            <nav class="flex text-xs text-uft-gray mb-2 font-medium">
+                <ol class="inline-flex items-center space-x-1 md:space-x-2">
+                    <li><a href="{% url 'apiProgramacion:configuracion_periodo' periodo.id_periodo %}" class="hover:text-uft-cyan transition">Programación {{ periodo.nombre_periodo }}</a></li>
+                    <li><span class="mx-1">/</span></li>
+                    <li class="text-uft-black">{{ curso.codigo_asignatura }}</li>
+                </ol>
+            </nav>
+            <h1 class="font-serif text-3xl text-uft-black leading-tight">{{ curso.nombre_asignatura }}</h1>
+            <p class="text-xs text-uft-gray mt-1">
+                {{ curso.codigo_asignatura }} · {{ curso.programa.nombre_programa }}
+            </p>
+        </div>
+        <a href="{% url 'apiProgramacion:configuracion_periodo' periodo.id_periodo %}"
+           class="inline-flex items-center gap-2 text-sm font-semibold text-uft-gray hover:text-uft-black transition">
+            <i class="ph ph-arrow-left"></i> Volver
+        </a>
+    </header>
+
+    <div class="p-8">
+        {% if messages %}
+            <div class="mb-5 space-y-2 max-w-full">
+            {% for m in messages %}
+                {% if m.level == DEFAULT_MESSAGE_LEVELS.SUCCESS %}
+                    <div class="bg-green-50 border border-green-200 text-green-800 p-3 rounded-lg flex gap-2 items-start text-sm shadow-sm">
+                        <i class="ph-fill ph-check-circle text-lg text-green-600 shrink-0 mt-0.5"></i>
+                        <span>{{ m }}</span>
+                    </div>
+                {% elif m.level == DEFAULT_MESSAGE_LEVELS.ERROR %}
+                    <div class="bg-red-50 border border-red-200 text-red-800 p-3 rounded-lg flex gap-2 items-start text-sm shadow-sm">
+                        <i class="ph-fill ph-x-circle text-lg text-red-600 shrink-0 mt-0.5"></i>
+                        <span>{{ m }}</span>
+                    </div>
+                {% else %}
+                    <div class="bg-blue-50 border border-blue-200 text-blue-800 p-3 rounded-lg flex gap-2 items-start text-sm shadow-sm">
+                        <i class="ph-fill ph-info text-lg text-blue-600 shrink-0 mt-0.5"></i>
+                        <span>{{ m }}</span>
+                    </div>
+                {% endif %}
+            {% endfor %}
+            </div>
+        {% endif %}
+
+        <!-- Datos derivados (no editables) -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-uft-white border border-uft-light p-4 rounded-xl shadow-sm">
+                <h4 class="text-xs text-uft-gray uppercase tracking-wider font-semibold mb-1">Tipo de asignatura</h4>
+                {% if tipo_asignatura == 'MENCION' %}
+                    <span class="inline-flex items-center rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 text-sm font-semibold">Mención</span>
+                {% else %}
+                    <span class="inline-flex items-center rounded-full bg-uft-light text-uft-gray px-2 py-0.5 text-sm font-semibold">Obligatoria</span>
+                {% endif %}
+                <p class="text-xs text-uft-gray mt-2">Derivado de BolsaDetalle</p>
+            </div>
+            <div class="bg-uft-white border border-uft-light p-4 rounded-xl shadow-sm">
+                <h4 class="text-xs text-uft-gray uppercase tracking-wider font-semibold mb-1">Módulos semanales</h4>
+                <div class="font-serif text-2xl font-bold text-uft-black">{{ num_modulos }}</div>
+                <p class="text-xs text-uft-gray mt-1">Teóricos + prácticos + ayud. 1</p>
+            </div>
+            <div class="bg-uft-white border border-uft-light p-4 rounded-xl shadow-sm">
+                <h4 class="text-xs text-uft-gray uppercase tracking-wider font-semibold mb-1">Ciclicidad</h4>
+                {% if ciclicidad == 'Coincide' %}
+                    <span class="inline-flex items-center gap-1 text-facultad-green font-semibold"><i class="ph-fill ph-check-circle"></i> Coincide</span>
+                {% elif ciclicidad == 'No coincide' %}
+                    <span class="inline-flex items-center gap-1 text-amber-600 font-semibold"><i class="ph-fill ph-warning-circle"></i> No coincide</span>
+                {% else %}
+                    <span class="text-uft-gray">—</span>
+                {% endif %}
+                <p class="text-xs text-uft-gray mt-2">Paridad semestre de malla vs periodo</p>
+            </div>
+            <div class="bg-uft-white border border-uft-light p-4 rounded-xl shadow-sm">
+                <h4 class="text-xs text-uft-gray uppercase tracking-wider font-semibold mb-1">Semestre de malla</h4>
+                <div class="font-mono text-uft-black">{{ curso.semestres|join:" o "|default:"—" }}</div>
+                <p class="text-xs text-uft-gray mt-1">Periodicidad: {{ curso.get_periodicidad_display }}</p>
+            </div>
+        </div>
+
+        <form method="post" action="{% url 'apiProgramacion:guardar_configuracion_curso' periodo.id_periodo curso.id_curso %}" class="space-y-6">
+            {% csrf_token %}
+
+            <!-- Configuración del curso -->
+            <section class="bg-uft-white border border-uft-light rounded-xl shadow-sm p-6">
+                <h2 class="font-serif text-xl text-uft-black mb-1">Configuración del curso</h2>
+                <p class="text-xs text-uft-gray mb-4">
+                    Estos valores se guardan en el curso y se reutilizan en las próximas programaciones.
+                </p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl">
+                    <div>
+                        <label for="tipo_sala" class="block text-sm font-semibold text-uft-black mb-2">
+                            Tipo de sala
+                        </label>
+                        <select id="tipo_sala" name="tipo_sala"
+                                class="w-full rounded-lg border border-uft-light bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-uft-cyan focus:border-uft-cyan transition">
+                            <option value="" {% if curso.tipo_sala is None %}selected{% endif %}>— Sin configurar —</option>
+                            {% for valor, etiqueta in tipos_sala %}
+                                <option value="{{ valor }}" {% if curso.tipo_sala == valor %}selected{% endif %}>{{ etiqueta }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label for="lista_cruzada" class="block text-sm font-semibold text-uft-black mb-2">
+                            Lista cruzada
+                        </label>
+                        <input type="text" id="lista_cruzada" name="lista_cruzada" maxlength="50"
+                               value="{{ curso.lista_cruzada }}"
+                               placeholder="Ej. LC-1 (opcional)"
+                               class="w-full rounded-lg border border-uft-light bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-uft-cyan focus:border-uft-cyan transition">
+                    </div>
+                </div>
+            </section>
+
+            <!-- Fijos por sección -->
+            <section class="bg-uft-white border border-uft-light rounded-xl shadow-sm p-6">
+                <h2 class="font-serif text-xl text-uft-black mb-1">Fijos de horario por sección</h2>
+                <p class="text-xs text-uft-gray mb-4">
+                    Ancla una sección a un día y módulo de inicio. Si dejas el día en blanco, la sección se programa libremente.
+                    El docente se toma de las asignaciones de presupuesto (RadDocente).
+                </p>
+
+                {% if secciones %}
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="bg-uft-light/60 text-uft-gray text-left text-xs uppercase tracking-wider">
+                                <th class="px-4 py-3 font-semibold">NRC</th>
+                                <th class="px-4 py-3 font-semibold text-center">Componentes</th>
+                                <th class="px-4 py-3 font-semibold">Día fijo</th>
+                                <th class="px-4 py-3 font-semibold">Módulo de inicio</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-uft-light">
+                            {% for seccion in secciones %}
+                            <tr>
+                                <td class="px-4 py-3 font-mono text-xs">{{ seccion.nrc_seccion }}</td>
+                                <td class="px-4 py-3 text-center font-mono">{{ seccion.num_componentes }}</td>
+                                <td class="px-4 py-3">
+                                    <select name="dia_fijo_{{ seccion.id_seccion }}" data-dia
+                                            class="w-40 rounded-lg border border-uft-light bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-uft-cyan focus:border-uft-cyan transition">
+                                        <option value="" {% if not seccion.dia_fijo %}selected{% endif %}>— Libre —</option>
+                                        {% for valor, etiqueta in dias %}
+                                            <option value="{{ valor }}" {% if seccion.dia_fijo == valor %}selected{% endif %}>{{ etiqueta }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <input type="number" min="1" step="1"
+                                           name="modulo_inicio_fijo_{{ seccion.id_seccion }}"
+                                           data-modulo
+                                           value="{{ seccion.modulo_inicio_fijo|default_if_none:'' }}"
+                                           class="w-32 rounded-lg border border-uft-light bg-white px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-uft-cyan focus:border-uft-cyan transition">
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-sm text-uft-gray">Este curso no tiene secciones creadas en el periodo {{ periodo.nombre_periodo }}.</p>
+                {% endif %}
+            </section>
+
+            <section class="bg-uft-black rounded-xl shadow-lg p-6 flex flex-wrap items-center justify-between gap-4">
+                <div class="text-white/90 text-sm max-w-2xl">
+                    Los cambios se guardan en el curso y en sus secciones del periodo
+                    <strong class="text-uft-cyan">{{ periodo.nombre_periodo }}</strong>.
+                </div>
+                <button type="submit"
+                        class="inline-flex items-center gap-2 rounded-lg bg-uft-cyan hover:bg-uft-black hover:text-white transition px-6 py-3 text-white font-bold shadow-lg">
+                    <i class="ph ph-floppy-disk text-lg"></i> Guardar configuración
+                </button>
+            </section>
+        </form>
+    </div>
+</main>
+
+<script>
+    document.querySelectorAll('select[data-dia]').forEach(function (select) {
+        const input = select.closest('tr').querySelector('input[data-modulo]');
+        function sincronizar() {
+            const libre = select.value === '';
+            input.disabled = libre;
+            if (libre) input.value = '';
+        }
+        select.addEventListener('change', sincronizar);
+        sincronizar();
+    });
+</script>
+{% endblock %}

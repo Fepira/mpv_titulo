@@ -29,7 +29,7 @@
             </button>
         </form>
         {% if not es_detalle_curso %}
-        <a href="{% url 'apiDemanda:gestionar_programacion_curso' periodo.id_periodo curso.id_curso %}"
+        <a href="{% url 'RadDocente:presupuesto_curso' periodo.id_periodo curso.id_curso %}"
            title="Ver solo este curso"
            class="text-uft-gray hover:text-uft-cyan transition p-1 inline-block"
            onclick="event.stopPropagation()">
@@ -57,7 +57,7 @@
                 </form>
             </div>
 
-            {% include "apiDemanda/_tabla_secciones.html" with periodo=periodo secciones=secciones curso_default=curso %}
+            {% include "RadDocente/_tabla_secciones.html" with periodo=periodo secciones=secciones curso_default=curso %}
 
             {% if not secciones %}
                 <div class="text-center py-10 bg-uft-white rounded-lg border border-dashed border-uft-light">

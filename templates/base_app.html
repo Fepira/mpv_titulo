@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}UFT · Planificación Académica{% endblock %}</title>
+
+    {% include "apiDemanda/_head_base.html" %}
+    {% block head_extra %}{% endblock %}
+</head>
+<body class="font-sans text-uft-black antialiased">
+
+    {% include "_sidebar.html" %}
+
+    {% block content %}{% endblock %}
+
+</body>
+</html>

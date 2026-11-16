@@ -1,12 +1,8 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ curso.codigo_asignatura }} - Programación {{ periodo.nombre_periodo }}</title>
-    {% include "apiDemanda/_head_base.html" %}
-</head>
-<body class="font-sans text-uft-black antialiased">
+{% extends "base_app.html" %}
+
+{% block title %}{{ curso.codigo_asignatura }} - Presupuesto Docente {{ periodo.nombre_periodo }}{% endblock %}
+
+{% block content %}
 
 <main class="min-h-screen">
     <header class="bg-uft-white border-b border-uft-light px-8 py-6 sticky top-0 z-30 shadow-sm flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
@@ -17,7 +13,7 @@
                     <li><span class="mx-1">/</span></li>
                     <li><a href="{% url 'apiDemanda:proyeccion_resultados' periodo.id_periodo %}" class="hover:text-uft-cyan transition">Estimación {{ periodo.nombre_periodo }}</a></li>
                     <li><span class="mx-1">/</span></li>
-                    <li><a href="{% url 'apiDemanda:gestionar_programacion_periodo' periodo.id_periodo %}" class="hover:text-uft-cyan transition">Programación</a></li>
+                    <li><a href="{% url 'RadDocente:presupuesto_periodo' periodo.id_periodo %}" class="hover:text-uft-cyan transition">Presupuesto Docente</a></li>
                     <li><span class="mx-1">/</span></li>
                     <li class="text-uft-black">{{ curso.codigo_asignatura }}</li>
                 </ol>
@@ -37,7 +33,7 @@
         <div class="flex flex-wrap items-center gap-3">
             <div class="bg-uft-light/50 border border-uft-light rounded-lg px-3 py-2 flex items-center gap-2">
                 <span class="text-xs text-uft-gray font-medium">Cambiar periodo:</span>
-                {% url 'apiDemanda:gestionar_programacion_curso' 999999999 curso.id_curso as url_tpl_curso %}
+                {% url 'RadDocente:presupuesto_curso' 999999999 curso.id_curso as url_tpl_curso %}
                 <select id="periodo-selector"
                         data-url-template="{{ url_tpl_curso|default:'/__P__/curso/__C__/' }}"
                         data-placeholder="999999999"
@@ -71,7 +67,7 @@
                     <i class="ph ph-plus-circle text-lg"></i> Agregar Sección
                 </button>
             </form>
-            <a href="{% url 'apiDemanda:gestionar_programacion_periodo' periodo.id_periodo %}"
+            <a href="{% url 'RadDocente:presupuesto_periodo' periodo.id_periodo %}"
                class="bg-uft-light hover:bg-uft-gray/20 text-uft-black px-4 py-2.5 rounded-lg font-bold transition shadow-sm flex items-center gap-2 text-sm border border-uft-gray/20">
                 <i class="ph ph-list-dashes text-lg"></i> Ver todos los cursos
             </a>
@@ -154,7 +150,7 @@
             {% if cursos_agrupados and cursos_agrupados.0.secciones %}
                 {% for entrada in cursos_agrupados %}
                 <div class="px-8 py-6">
-                    {% include "apiDemanda/_tabla_secciones.html" with periodo=periodo secciones=entrada.secciones curso_default=entrada.curso %}
+                    {% include "RadDocente/_tabla_secciones.html" with periodo=periodo secciones=entrada.secciones curso_default=entrada.curso %}
                 </div>
                 {% endfor %}
             {% else %}
@@ -178,7 +174,6 @@
     </div>
 </main>
 
-{% include "apiDemanda/_scripts_base.html" %}
-{% include "apiDemanda/_datalist_docentes.html" %}
-</body>
-</html>
+{% include "RadDocente/_scripts_base.html" %}
+{% include "RadDocente/_datalist_docentes.html" %}
+{% endblock %}

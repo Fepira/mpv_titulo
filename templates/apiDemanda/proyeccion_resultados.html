@@ -1,10 +1,8 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <title>Resultados Proyección {{ periodo.nombre_periodo }}</title>
-    {% include "apiDemanda/_head_base.html" %}
-</head>
-<body class="font-sans text-uft-black antialiased" style="background:#f5f7fa;">
+{% extends "base_app.html" %}
+
+{% block title %}Resultados Proyección {{ periodo.nombre_periodo }}{% endblock %}
+
+{% block content %}
 
     <div style="max-width:1200px; margin:30px auto; padding:0 20px;">
         <header class="bg-uft-white border border-uft-light p-6 rounded-xl shadow-sm mb-5 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
@@ -18,16 +16,73 @@
                 <p class="text-xs text-uft-gray mt-1">Aquí puedes revisar la estimación de demanda por curso y luego pasar a programar docentes.</p>
             </div>
             <div class="flex flex-wrap gap-3">
-                <a href="{% url 'apiDemanda:gestionar_programacion_periodo' periodo.id_periodo %}"
+                <a href="{% url 'RadDocente:presupuesto_periodo' periodo.id_periodo %}"
                    class="bg-facultad-green hover:bg-opacity-80 text-uft-black px-4 py-2.5 rounded-lg font-bold transition shadow-sm inline-flex items-center gap-2 text-sm">
-                    <i class="ph ph-users-three text-lg"></i> Programar Docentes ({{ resumen.secciones_creadas }} secciones)
+                    <i class="ph ph-users-three text-lg"></i> Presupuesto Docente ({{ resumen.secciones_creadas }} secciones)
                 </a>
                 <a href="{% url 'apiDemanda:proyeccion_demanda_form' %}"
                    class="bg-uft-black hover:bg-opacity-80 text-uft-white px-4 py-2.5 rounded-lg font-bold transition shadow-sm inline-flex items-center gap-2 text-sm">
                     <i class="ph ph-arrow-left"></i> Volver al formulario
                 </a>
+                <button type="button" onclick="document.getElementById('panel-limpiar-proyeccion').classList.toggle('hidden')"
+                        class="bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-lg font-bold transition shadow-sm inline-flex items-center gap-2 text-sm">
+                    <i class="ph-fill ph-trash text-lg"></i> 🗑 Eliminar toda esta proyección
+                </button>
             </div>
         </header>
+
+        <!-- Panel de confirmación de BORRADO (oculto por default) -->
+        <form id="panel-limpiar-proyeccion"
+              method="post"
+              action="{% url 'apiDemanda:proyeccion_limpiar_periodo' periodo.id_periodo %}"
+              onsubmit="return validarLimpiarProyeccion(event, this);"
+              class="hidden mb-5 border-2 border-red-500/60 bg-red-50 rounded-xl p-5 shadow-sm">
+            {% csrf_token %}
+            <div class="flex items-start gap-3">
+                <div class="shrink-0 text-red-600 pt-1">
+                    <i class="ph-fill ph-warning text-3xl"></i>
+                </div>
+                <div class="flex-1 text-sm text-red-900">
+                    <div class="font-bold text-base mb-1">⚠️ Estás por ELIMINANDO TODA la proyección de <code class="mx-1 bg-red-100 px-2 py-0.5 rounded border border-red-200">{{ periodo.nombre_periodo }}</code></div>
+                    <div class="leading-relaxed">
+                        Se borran <strong>TODAS LAS TABLAS INVOLUCRADAS</strong> en orden correcto para no romper Foreign Keys:
+                        <ol class="list-decimal ml-5 mt-1.5 space-y-0.5">
+                            <li>Asignaciones de docentes (<code>AsignacionDocente</code>)</li>
+                            <li>Horarios (<code>SeccionHorario</code>)</li>
+                            <li>Componentes (<code>SeccionComponente</code>)</li>
+                            <li>Secciones (<code>Seccion</code>)</li>
+                            <li>Estimaciones de demanda (<code>EstimacionDemanda</code>)</li>
+                        </ol>
+                        La fila del <code>Periodo</code> NO se borra — solo quedan limpias sus tablas hijas.
+                    </div>
+                    <label class="mt-3 block font-semibold">
+                        Para confirmar, escribí:
+                        <div class="font-mono text-xs mt-1 mb-1 text-red-900/80">
+                            <code class="bg-white px-2 py-0.5 rounded border border-red-200">SI {{ periodo.nombre_periodo }}</code>
+                        </div>
+                        <input
+                            type="text"
+                            name="confirmar"
+                            id="confirmar-limpieza-input"
+                            pattern="SI {{ periodo.nombre_periodo }}"
+                            placeholder="pega o escribe el texto de arriba..."
+                            autocomplete="off"
+                            class="mt-1 w-full max-w-sm rounded-lg border border-red-300 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-red-500 text-red-900 font-semibold">
+                    </label>
+                    <div class="mt-4 flex items-center gap-2 flex-wrap">
+                        <button type="submit"
+                                class="inline-flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold transition shadow-sm text-sm">
+                            <i class="ph-fill ph-trash"></i> ✅ Sí, BORRAR definitivamente (no hay vuelta atrás)
+                        </button>
+                        <button type="button"
+                                onclick="document.getElementById('panel-limpiar-proyeccion').classList.add('hidden')"
+                                class="inline-flex items-center gap-1.5 bg-white border border-uft-light hover:bg-uft-light/40 text-uft-black px-4 py-2 rounded-lg font-semibold transition text-sm">
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
 
         {% if messages %}
             <div class="mb-5 space-y-2">
@@ -81,6 +136,7 @@
                             <th style="padding:11px 14px; text-align:left;">Código</th>
                             <th style="padding:11px 14px; text-align:left;">Asignatura</th>
                             <th style="padding:11px 14px; text-align:left;">Programa</th>
+                            <th style="padding:11px 14px; text-align:left;">Origen</th>
                             <th style="padding:11px 14px; text-align:center;">Alumnos</th>
                             <th style="padding:11px 14px; text-align:center;">Secciones</th>
                             <th style="padding:11px 14px; text-align:center; width:150px;">Acción</th>
@@ -92,22 +148,61 @@
                                 <td style="padding:10px 14px;"><strong>{{ e.curso.codigo_asignatura }}</strong></td>
                                 <td style="padding:10px 14px;">{{ e.curso.nombre_asignatura }}</td>
                                 <td style="padding:10px 14px; color:#555; font-size:13px;">{{ e.curso.programa.nombre_programa|default:"-" }}</td>
+                                <td style="padding:10px 14px;">
+                                    {% if e.es_bolsa %}
+                                        <span style="display:inline-flex; align-items:center; gap:4px; background:#eef7ff; color:#0b6ea8; border:1px solid #bfe0f5; padding:2px 8px; border-radius:9999px; font-size:12px; font-weight:600;" title="Bolsa: {{ e.bolsa_codigo }}">
+                                            <i class="ph ph-stack"></i> {{ e.mencion_nombre|default:"Bolsa" }}
+                                        </span>
+                                    {% else %}
+                                        <span style="color:#999; font-size:12px;">Obligatoria</span>
+                                    {% endif %}
+                                </td>
                                 <td style="padding:10px 14px; text-align:center;">{{ e.alumnos_proyectados }}</td>
                                 <td style="padding:10px 14px; text-align:center;"><strong class="text-uft-cyan">{{ e.secciones_calculadas }}</strong></td>
                                 <td style="padding:10px 14px; text-align:center;">
-                                    <a href="{% url 'apiDemanda:gestionar_programacion_curso' periodo.id_periodo e.curso.id_curso %}"
+                                    <a href="{% url 'RadDocente:presupuesto_curso' periodo.id_periodo e.curso.id_curso %}"
                                        class="inline-flex items-center gap-1.5 bg-uft-cyan text-uft-white px-3 py-1.5 rounded-lg font-semibold text-xs hover:bg-opacity-85 transition shadow-sm">
-                                        <i class="ph ph-users-three"></i> Programar
+                                        <i class="ph ph-users-three"></i> Presupuesto
                                     </a>
                                 </td>
                             </tr>
                         {% empty %}
-                            <tr><td colspan="6" style="color:#999; text-align:center; padding:30px;">Sin datos. Ejecuta la proyección primero.</td></tr>
+                            <tr><td colspan="7" style="color:#999; text-align:center; padding:30px;">Sin datos. Ejecuta la proyección primero.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
-</body>
-</html>
+
+    <script>
+        // Confirmación JS de borrado de proyección: compara input vs texto esperado
+        function validarLimpiarProyeccion(e, form) {
+            const nombre = "{{ periodo.nombre_periodo|escapejs }}";
+            const esperado = "SI " + nombre;
+            const input = document.getElementById("confirmar-limpieza-input");
+            const actual = (input ? input.value || "" : "").trim();
+            if (actual !== esperado) {
+                e.preventDefault();
+                window.alert(
+                    "⚠️  Confirmación incorrecta.\n\n" +
+                    "Esperado exactamente: '" + esperado + "'\n" +
+                    "Tu escribiste:            '" + actual + "'"
+                );
+                if (input) { input.focus(); input.select(); }
+                return false;
+            }
+            return window.confirm(
+                "¿ESTÁS 100% SEGURO?\n\n" +
+                "Se borrarán:\n" +
+                " • Todas las AsignacionesDocente\n" +
+                " • Todos los SeccionHorario\n" +
+                " • Todos los SeccionComponente\n" +
+                " • Todas las Secciones\n" +
+                " • Todas las EstimacionesDemanda\n\n" +
+                "del periodo '" + nombre + "'.\n\n" +
+                "ESTA ACCIÓN NO SE PUEDE DESHACER."
+            );
+        }
+    </script>
+{% endblock %}

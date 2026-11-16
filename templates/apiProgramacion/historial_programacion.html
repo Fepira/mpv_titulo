@@ -1,0 +1,265 @@
+{% extends "base_app.html" %}
+
+{% block title %}Historial de programaciones - {{ periodo.nombre_periodo }}{% endblock %}
+
+{% block content %}
+
+<main class="min-h-screen">
+    <header class="bg-uft-white border-b border-uft-light px-8 py-6 sticky top-0 z-30 shadow-sm flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
+        <div>
+            <nav class="flex text-xs text-uft-gray mb-2 font-medium">
+                <ol class="inline-flex items-center space-x-1 md:space-x-2">
+                    <li><a href="{% url 'apiProgramacion:configuracion_periodo' periodo.id_periodo %}" class="hover:text-uft-cyan transition">Programación {{ periodo.nombre_periodo }}</a></li>
+                    <li><span class="mx-1">/</span></li>
+                    <li class="text-uft-black">Historial</li>
+                </ol>
+            </nav>
+            <h1 class="font-serif text-3xl text-uft-black leading-tight">Historial de programaciones</h1>
+            <p class="text-xs text-uft-gray mt-1">
+                Cada ejecución del Algoritmo Genético queda guardada con sus métricas y el snapshot de
+                parámetros y ventanas usados. La corrida <strong>vigente</strong> es la que muestra el horario.
+            </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+            <a href="{% url 'apiProgramacion:configuracion_periodo' periodo.id_periodo %}"
+               class="inline-flex items-center gap-2 rounded-lg border border-uft-light bg-uft-white px-3 py-2 text-sm font-semibold text-uft-black hover:border-uft-cyan hover:text-uft-cyan transition">
+                <i class="ph ph-sliders-horizontal"></i> Configuración
+            </a>
+            <a href="{% url 'apiProgramacion:horario_programado' periodo.id_periodo %}"
+               class="inline-flex items-center gap-2 rounded-lg border border-uft-light bg-uft-white px-3 py-2 text-sm font-semibold text-uft-black hover:border-uft-cyan hover:text-uft-cyan transition">
+                <i class="ph ph-calendar-check"></i> Ver horario vigente
+            </a>
+            <div class="bg-uft-light/50 border border-uft-light rounded-lg px-3 py-2 flex items-center gap-2">
+                <span class="text-xs text-uft-gray font-medium">Periodo:</span>
+                {% url 'apiProgramacion:historial_programacion' 999999999 as url_tpl_periodo %}
+                <select id="periodo-selector"
+                        data-url-template="{{ url_tpl_periodo|default:'/0/' }}"
+                        data-placeholder="999999999"
+                        onchange="
+                            const tpl = this.dataset.urlTemplate;
+                            const ph = this.dataset.placeholder;
+                            if (this.value && tpl.includes(ph)) {
+                                window.location = tpl.replace(ph, this.value);
+                            }
+                        "
+                        class="bg-transparent text-sm font-semibold text-uft-black focus:outline-none cursor-pointer">
+                    {% for p in periodos_all %}
+                        <option value="{{ p.id_periodo }}" {% if p.id_periodo == periodo.id_periodo %}selected{% endif %}>
+                            {{ p.nombre_periodo }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <div class="p-8">
+        {% if messages %}
+            <div class="mb-5 space-y-2 max-w-full">
+            {% for m in messages %}
+                {% if m.level == DEFAULT_MESSAGE_LEVELS.SUCCESS %}
+                    <div class="bg-green-50 border border-green-200 text-green-800 p-3 rounded-lg flex gap-2 items-start text-sm shadow-sm">
+                        <i class="ph-fill ph-check-circle text-lg text-green-600 shrink-0 mt-0.5"></i>
+                        <span>{{ m }}</span>
+                    </div>
+                {% elif m.level == DEFAULT_MESSAGE_LEVELS.ERROR %}
+                    <div class="bg-red-50 border border-red-200 text-red-800 p-3 rounded-lg flex gap-2 items-start text-sm shadow-sm">
+                        <i class="ph-fill ph-x-circle text-lg text-red-600 shrink-0 mt-0.5"></i>
+                        <span>{{ m }}</span>
+                    </div>
+                {% else %}
+                    <div class="bg-blue-50 border border-blue-200 text-blue-800 p-3 rounded-lg flex gap-2 items-start text-sm shadow-sm">
+                        <i class="ph-fill ph-info text-lg text-blue-600 shrink-0 mt-0.5"></i>
+                        <span>{{ m }}</span>
+                    </div>
+                {% endif %}
+            {% endfor %}
+            </div>
+        {% endif %}
+
+        {% if programaciones %}
+        <div class="bg-uft-white border border-uft-light rounded-xl shadow-sm overflow-hidden">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="bg-uft-black text-white text-left">
+                        <th class="px-4 py-3 font-semibold">Fecha</th>
+                        <th class="px-4 py-3 font-semibold text-center">Estado</th>
+                        <th class="px-4 py-3 font-semibold text-right">Fitness</th>
+                        <th class="px-4 py-3 font-semibold text-center">Iteraciones</th>
+                        <th class="px-4 py-3 font-semibold text-center">Paquetes</th>
+                        <th class="px-4 py-3 font-semibold text-center">Bloques</th>
+                        <th class="px-4 py-3 font-semibold text-center">Jornada</th>
+                        <th class="px-4 py-3 font-semibold">Snapshot de entrada</th>
+                        <th class="px-4 py-3"></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-uft-light">
+                    {% for p in programaciones %}
+                    <tr class="hover:bg-uft-light/30 transition">
+                        <td class="px-4 py-3 font-mono text-xs">{{ p.fecha_generacion|date:"d/m/Y H:i" }}</td>
+                        <td class="px-4 py-3 text-center">
+                            {% if p.es_vigente %}
+                                <span class="inline-flex items-center gap-1 rounded-full bg-uft-cyan/15 text-uft-cyan border border-uft-cyan/40 px-2 py-0.5 text-xs font-bold">
+                                    <i class="ph-fill ph-check-circle"></i> Vigente
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center gap-1 rounded-full bg-uft-light text-uft-gray px-2 py-0.5 text-xs font-semibold">
+                                    Historial
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-right">
+                            <span class="font-mono font-semibold {% if p.mejor_fitness >= 0 %}text-facultad-green{% else %}text-amber-600{% endif %}">
+                                {{ p.mejor_fitness|floatformat:"0" }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-center font-mono">{{ p.iteraciones }}</td>
+                        <td class="px-4 py-3 text-center font-mono">{{ p.cant_genes }}</td>
+                        <td class="px-4 py-3 text-center font-mono">{{ p.n_bloques }}</td>
+                        <td class="px-4 py-3 text-center font-mono text-xs">
+                            {{ p.cant_dias }}d · {{ p.max_horas_edificio }}m
+                        </td>
+                        <td class="px-4 py-3">
+                            <details class="text-xs">
+                                <summary class="cursor-pointer text-uft-cyan font-semibold hover:text-uft-black transition">
+                                    Ver entrada
+                                </summary>
+                                <div class="mt-2 space-y-2">
+                                    <div>
+                                        <p class="text-uft-gray font-semibold uppercase tracking-wider text-[10px] mb-1">Parámetros del AG</p>
+                                        {% if p.parametros_legibles %}
+                                            <ul class="space-y-0.5">
+                                            {% for etiqueta, valor in p.parametros_legibles %}
+                                                <li class="flex gap-2">
+                                                    <span class="text-uft-gray">{{ etiqueta }}:</span>
+                                                    <span class="font-mono text-uft-black">{{ valor }}</span>
+                                                </li>
+                                            {% endfor %}
+                                            </ul>
+                                        {% else %}
+                                            <p class="text-uft-gray italic">Sin snapshot (corrida previa al historial).</p>
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <p class="text-uft-gray font-semibold uppercase tracking-wider text-[10px] mb-1">Ventanas horarias</p>
+                                        {% if p.ventanas_legibles %}
+                                            <ul class="space-y-0.5">
+                                            {% for semestre, tipo, rango in p.ventanas_legibles %}
+                                                <li class="flex gap-2">
+                                                    <span class="text-uft-gray">{{ semestre }} · {{ tipo }}:</span>
+                                                    <span class="font-mono text-uft-black">{{ rango }}</span>
+                                                </li>
+                                            {% endfor %}
+                                            </ul>
+                                        {% else %}
+                                            <p class="text-uft-gray italic">Sin snapshot (corrida previa al historial).</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </details>
+                        </td>
+                        <td class="px-4 py-3">
+                            <div class="flex flex-wrap items-center justify-end gap-2">
+                                <a href="{% url 'apiProgramacion:horario_programado' periodo.id_periodo %}?resultado={{ p.id_resultado }}"
+                                   class="inline-flex items-center gap-1 text-uft-cyan hover:text-uft-black font-semibold text-xs transition">
+                                    <i class="ph ph-calendar-check"></i> Ver horario
+                                </a>
+                                {% if puede_configurar_ag %}
+                                    {% if not p.es_vigente %}
+                                        <form method="post"
+                                              action="{% url 'apiProgramacion:activar_programacion' p.id_resultado %}"
+                                              onsubmit="return confirm('¿Marcar esta corrida como la vigente del periodo {{ periodo.nombre_periodo }}?');">
+                                            {% csrf_token %}
+                                            <button type="submit"
+                                                    class="inline-flex items-center gap-1 text-uft-gray hover:text-uft-black font-semibold text-xs transition">
+                                                <i class="ph ph-push-pin"></i> Marcar vigente
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                    <button type="button"
+                                            onclick="document.getElementById('panel-borrar-{{ p.id_resultado }}').classList.toggle('hidden')"
+                                            class="inline-flex items-center gap-1 text-red-600 hover:text-red-800 font-semibold text-xs transition">
+                                        <i class="ph ph-trash"></i> Eliminar
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% if puede_configurar_ag %}
+                    <tr id="panel-borrar-{{ p.id_resultado }}" class="hidden bg-red-50/60">
+                        <td colspan="9" class="px-4 py-4">
+                            <form method="post"
+                                  action="{% url 'apiProgramacion:eliminar_programacion' p.id_resultado %}"
+                                  onsubmit="return validarBorradoCorrida(event, this, '{{ p.id_resultado }}');"
+                                  class="flex flex-wrap items-end gap-4">
+                                {% csrf_token %}
+                                <div class="text-xs text-red-900/90 max-w-xl leading-relaxed">
+                                    Se eliminarán la corrida del <strong>{{ p.fecha_generacion|date:"d/m/Y H:i" }}</strong>
+                                    y sus <strong>{{ p.n_bloques }}</strong> bloque(s). Esta acción no se puede deshacer.
+                                    {% if p.es_vigente %}Se promoverá la corrida más reciente que quede como vigente.{% endif %}
+                                    <label class="mt-2 block font-semibold text-red-900">
+                                        Para confirmar, escribí
+                                        <code class="bg-white px-2 py-0.5 rounded border border-red-200 font-mono">{{ codigo_confirmacion }}</code>
+                                    </label>
+                                </div>
+                                <input type="text"
+                                       name="confirmar"
+                                       id="input-borrar-{{ p.id_resultado }}"
+                                       autocomplete="off"
+                                       placeholder="escribe el código de confirmación..."
+                                       class="w-72 rounded-lg border border-red-300 bg-white px-3 py-2 text-sm font-semibold text-red-900 focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-red-500">
+                                <button type="submit"
+                                        class="inline-flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold transition shadow-sm text-sm">
+                                    <i class="ph-fill ph-trash"></i> Sí, BORRAR la corrida
+                                </button>
+                                <button type="button"
+                                        onclick="document.getElementById('panel-borrar-{{ p.id_resultado }}').classList.add('hidden')"
+                                        class="inline-flex items-center gap-1.5 border border-uft-light bg-white hover:bg-uft-light text-uft-black px-4 py-2 rounded-lg font-semibold transition text-sm">
+                                    Cancelar
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="bg-uft-white border border-dashed border-uft-light rounded-xl p-12 text-center">
+            <i class="ph ph-clock-counter-clockwise text-4xl text-uft-gray"></i>
+            <h3 class="font-serif text-xl text-uft-black mt-3">Todavía no hay programaciones generadas</h3>
+            <p class="text-sm text-uft-gray mt-1">
+                Ejecuta el Algoritmo Genético desde la
+                <a href="{% url 'apiProgramacion:configuracion_periodo' periodo.id_periodo %}" class="text-uft-cyan underline">configuración del periodo</a>
+                y cada corrida quedará registrada aquí.
+            </p>
+        </div>
+        {% endif %}
+    </div>
+</main>
+
+<script>
+    // Confirmación de borrado de una corrida: valida el código escrito y pide confirm() nativo.
+    function validarBorradoCorrida(e, form, idResultado) {
+        const esperado = "{{ codigo_confirmacion|escapejs }}";
+        const input = document.getElementById("input-borrar-" + idResultado);
+        const actual = (input ? input.value || "" : "").trim();
+        if (actual !== esperado) {
+            e.preventDefault();
+            window.alert(
+                "⚠️  Confirmación incorrecta.\n\n" +
+                "Esperado exactamente: '" + esperado + "'\n" +
+                "Tu escribiste:            '" + actual + "'"
+            );
+            if (input) { input.focus(); input.select(); }
+            return false;
+        }
+        return window.confirm(
+            "⚠️  Última advertencia.\n\n" +
+            "Se eliminará esta programación y todos sus bloques.\n" +
+            "¿Confirmas el borrado definitivo?"
+        );
+    }
+</script>
+{% endblock %}

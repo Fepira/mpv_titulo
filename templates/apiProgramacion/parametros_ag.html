@@ -1,0 +1,132 @@
+{% extends "base_app.html" %}
+
+{% block title %}Parámetros del Algoritmo Genético{% endblock %}
+
+{% block content %}
+
+<main class="min-h-screen">
+    <header class="bg-uft-white border-b border-uft-light px-8 py-6 sticky top-0 z-30 shadow-sm flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
+        <div>
+            <nav class="flex text-xs text-uft-gray mb-2 font-medium">
+                <ol class="inline-flex items-center space-x-1 md:space-x-2">
+                    <li><a href="{% url 'apiDemanda:proyeccion_demanda_form' %}" class="hover:text-uft-cyan transition">Dashboard</a></li>
+                    <li><span class="mx-1">/</span></li>
+                    <li class="text-uft-black">Parámetros del AG</li>
+                </ol>
+            </nav>
+            <h1 class="font-serif text-3xl text-uft-black leading-tight">Parámetros del Algoritmo Genético</h1>
+            <p class="text-xs text-uft-gray mt-1">
+                Configuración técnica global del motor de optimización y cuotas de sala por carrera.
+                Solo visible para Coordinación Académica y Administración.
+            </p>
+        </div>
+        <div class="bg-uft-light/50 border border-uft-light rounded-lg px-3 py-2 flex items-center gap-2">
+            <i class="ph ph-lock-key text-uft-gray"></i>
+            <span class="text-xs text-uft-gray font-medium">Acceso restringido</span>
+        </div>
+    </header>
+
+    <div class="p-8">
+        {% if messages %}
+            <div class="mb-5 space-y-2 max-w-full">
+            {% for m in messages %}
+                {% if m.level == DEFAULT_MESSAGE_LEVELS.SUCCESS %}
+                    <div class="bg-green-50 border border-green-200 text-green-800 p-3 rounded-lg flex gap-2 items-start text-sm shadow-sm">
+                        <i class="ph-fill ph-check-circle text-lg text-green-600 shrink-0 mt-0.5"></i>
+                        <span>{{ m }}</span>
+                    </div>
+                {% elif m.level == DEFAULT_MESSAGE_LEVELS.ERROR %}
+                    <div class="bg-red-50 border border-red-200 text-red-800 p-3 rounded-lg flex gap-2 items-start text-sm shadow-sm">
+                        <i class="ph-fill ph-x-circle text-lg text-red-600 shrink-0 mt-0.5"></i>
+                        <span>{{ m }}</span>
+                    </div>
+                {% else %}
+                    <div class="bg-blue-50 border border-blue-200 text-blue-800 p-3 rounded-lg flex gap-2 items-start text-sm shadow-sm">
+                        <i class="ph-fill ph-info text-lg text-blue-600 shrink-0 mt-0.5"></i>
+                        <span>{{ m }}</span>
+                    </div>
+                {% endif %}
+            {% endfor %}
+            </div>
+        {% endif %}
+
+        <form method="post" action="{% url 'apiProgramacion:guardar_parametros_ag' %}" class="space-y-6">
+            {% csrf_token %}
+
+            <section class="bg-uft-white border border-uft-light rounded-xl shadow-sm p-6">
+                <h2 class="font-serif text-xl text-uft-black mb-1">Motor de optimización</h2>
+                <p class="text-xs text-uft-gray mb-4">
+                    Valores por defecto tomados del prototipo. Cambiarlos afecta a todas las programaciones.
+                </p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {% for campo in campos %}
+                    <div>
+                        <label for="{{ campo.nombre }}" class="block text-sm font-semibold text-uft-black mb-1">
+                            {{ campo.etiqueta }}
+                        </label>
+                        <input type="number" step="{{ campo.paso }}" required
+                               id="{{ campo.nombre }}" name="{{ campo.nombre }}"
+                               value="{{ campo.valor }}"
+                               class="w-full rounded-lg border border-uft-light bg-white px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-uft-cyan focus:border-uft-cyan transition">
+                        <p class="text-xs text-uft-gray mt-1">{{ campo.ayuda }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="bg-uft-white border border-uft-light rounded-xl shadow-sm p-6">
+                <h2 class="font-serif text-xl text-uft-black mb-1">Cuotas de sala por carrera</h2>
+                <p class="text-xs text-uft-gray mb-4">
+                    Máximo de salas del mismo tipo que una carrera puede ocupar simultáneamente en un módulo.
+                </p>
+
+                {% if carreras %}
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="bg-uft-light/60 text-uft-gray text-left text-xs uppercase tracking-wider">
+                                <th class="px-4 py-3 font-semibold">Carrera</th>
+                                <th class="px-4 py-3 font-semibold text-center">Cuota salas comunes</th>
+                                <th class="px-4 py-3 font-semibold text-center">Cuota salas propias</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-uft-light">
+                            {% for carrera in carreras %}
+                            <tr class="hover:bg-uft-light/30 transition">
+                                <td class="px-4 py-3 font-semibold text-uft-black">{{ carrera.nombre_carrera }}</td>
+                                <td class="px-4 py-3 text-center">
+                                    <input type="number" min="0" step="1" required
+                                           name="cuota_comun_{{ carrera.id_carrera }}"
+                                           value="{{ carrera.cuota_sala_comun }}"
+                                           class="w-24 rounded-lg border border-uft-light bg-white px-3 py-2 text-sm font-mono text-center focus:outline-none focus:ring-2 focus:ring-uft-cyan focus:border-uft-cyan transition">
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <input type="number" min="0" step="1" required
+                                           name="cuota_propia_{{ carrera.id_carrera }}"
+                                           value="{{ carrera.cuota_sala_propia }}"
+                                           class="w-24 rounded-lg border border-uft-light bg-white px-3 py-2 text-sm font-mono text-center focus:outline-none focus:ring-2 focus:ring-uft-cyan focus:border-uft-cyan transition">
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-sm text-uft-gray">No hay carreras registradas.</p>
+                {% endif %}
+            </section>
+
+            <section class="bg-uft-black rounded-xl shadow-lg p-6 flex flex-wrap items-center justify-between gap-4">
+                <div class="text-white/90 text-sm max-w-2xl">
+                    Estos valores son globales y no dependen del periodo seleccionado.
+                </div>
+                <button type="submit"
+                        class="inline-flex items-center gap-2 rounded-lg bg-uft-cyan hover:bg-uft-white hover:text-uft-black transition px-6 py-3 text-white font-bold shadow-lg">
+                    <i class="ph ph-floppy-disk text-lg"></i> Guardar parámetros
+                </button>
+            </section>
+        </form>
+    </div>
+</main>
+{% endblock %}

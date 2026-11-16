@@ -1,0 +1,40 @@
+{% extends "base_app.html" %}
+
+{% block title %}Resultados de estimación · Seleccionar periodo{% endblock %}
+
+{% block content %}
+<main class="min-h-screen">
+
+    <header class="bg-uft-white border-b border-uft-light px-8 py-6">
+        <h1 class="font-serif text-3xl text-uft-black leading-tight">Resultados de estimación de demanda</h1>
+        <p class="text-xs text-uft-gray mt-1">
+            Elige el periodo para ver los cursos proyectados, alumnos y secciones calculadas.
+        </p>
+    </header>
+
+    <section class="px-8 py-8">
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {% for p in periodos %}
+                <a href="{% url 'apiDemanda:proyeccion_resultados' p.id_periodo %}"
+                   class="group bg-uft-white border border-uft-light rounded-xl p-5 hover:border-uft-cyan hover:shadow-md transition">
+                    <div class="flex items-center justify-between">
+                        <span class="font-serif text-2xl text-uft-black">{{ p.nombre_periodo }}</span>
+                        <i class="ph ph-arrow-right text-uft-gray group-hover:text-uft-cyan transition"></i>
+                    </div>
+                    <div class="mt-4 flex flex-wrap gap-4 text-xs text-uft-gray">
+                        <span class="inline-flex items-center gap-1"><i class="ph ph-list-magnifying-glass"></i> {{ p.n_estimaciones }} cursos estimados</span>
+                        <span class="inline-flex items-center gap-1"><i class="ph ph-columns"></i> {{ p.n_secciones }} secciones</span>
+                    </div>
+                    {% if not p.n_estimaciones %}
+                        <p class="mt-3 text-[11px] text-uft-gray inline-flex items-center gap-1">
+                            <i class="ph ph-info"></i> Sin estimaciones: ejecuta la proyección primero
+                        </p>
+                    {% endif %}
+                </a>
+            {% empty %}
+                <p class="text-sm text-uft-gray">No hay periodos registrados.</p>
+            {% endfor %}
+        </div>
+    </section>
+</main>
+{% endblock %}

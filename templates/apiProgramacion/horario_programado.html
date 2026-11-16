@@ -1,0 +1,290 @@
+{% extends "base_app.html" %}
+
+{% block title %}Horario programado - {{ periodo.nombre_periodo }}{% endblock %}
+
+{% block content %}
+
+<main class="min-h-screen">
+    <header class="bg-uft-white border-b border-uft-light px-8 py-6 sticky top-0 z-30 shadow-sm flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
+        <div>
+            <nav class="flex text-xs text-uft-gray mb-2 font-medium">
+                <ol class="inline-flex items-center space-x-1 md:space-x-2">
+                    <li><a href="{% url 'apiProgramacion:configuracion_periodo' periodo.id_periodo %}" class="hover:text-uft-cyan transition">Programación {{ periodo.nombre_periodo }}</a></li>
+                    <li><span class="mx-1">/</span></li>
+                    <li class="text-uft-black">Horario programado</li>
+                </ol>
+            </nav>
+            <h1 class="font-serif text-3xl text-uft-black leading-tight">Horario programado</h1>
+            <p class="text-xs text-uft-gray mt-1">
+                Grilla semanal generada por el Algoritmo Genético. Cada celda indica los módulos ocupados por día.
+            </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+            <a href="{% url 'apiProgramacion:configuracion_periodo' periodo.id_periodo %}"
+               class="inline-flex items-center gap-2 rounded-lg border border-uft-light bg-uft-white px-3 py-2 text-sm font-semibold text-uft-black hover:border-uft-cyan hover:text-uft-cyan transition">
+                <i class="ph ph-sliders-horizontal"></i> Configuración
+            </a>
+            <a href="{% url 'apiProgramacion:exportar_horario_csv' periodo.id_periodo %}{% if querystring %}?{{ querystring }}{% endif %}"
+               class="inline-flex items-center gap-2 rounded-lg bg-uft-black text-white px-3 py-2 text-sm font-semibold hover:bg-uft-cyan transition">
+                <i class="ph ph-download-simple"></i> Exportar CSV
+            </a>
+            <a href="{% url 'apiProgramacion:historial_programacion' periodo.id_periodo %}"
+               class="inline-flex items-center gap-2 rounded-lg border border-uft-light bg-uft-white px-3 py-2 text-sm font-semibold text-uft-black hover:border-uft-cyan hover:text-uft-cyan transition">
+                <i class="ph ph-clock-counter-clockwise"></i> Historial{% if total_programaciones %} ({{ total_programaciones }}){% endif %}
+            </a>
+            <div class="bg-uft-light/50 border border-uft-light rounded-lg px-3 py-2 flex items-center gap-2">
+                <span class="text-xs text-uft-gray font-medium">Periodo:</span>
+                {% url 'apiProgramacion:horario_programado' 999999999 as url_tpl_periodo %}
+                <select id="periodo-selector"
+                        data-url-template="{{ url_tpl_periodo|default:'/0/' }}"
+                        data-placeholder="999999999"
+                        onchange="
+                            const tpl = this.dataset.urlTemplate;
+                            const ph = this.dataset.placeholder;
+                            if (this.value && tpl.includes(ph)) {
+                                window.location = tpl.replace(ph, this.value);
+                            }
+                        "
+                        class="bg-transparent text-sm font-semibold text-uft-black focus:outline-none cursor-pointer">
+                    {% for p in periodos_all %}
+                        <option value="{{ p.id_periodo }}" {% if p.id_periodo == periodo.id_periodo %}selected{% endif %}>
+                            {{ p.nombre_periodo }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <div class="p-8">
+        {% if messages %}
+            <div class="mb-5 space-y-2 max-w-full">
+            {% for m in messages %}
+                <div class="bg-blue-50 border border-blue-200 text-blue-800 p-3 rounded-lg flex gap-2 items-start text-sm shadow-sm">
+                    <i class="ph-fill ph-info text-lg text-blue-600 shrink-0 mt-0.5"></i>
+                    <span>{{ m }}</span>
+                </div>
+            {% endfor %}
+            </div>
+        {% endif %}
+
+        {% if not resultado.es_vigente %}
+            <div class="mb-5 bg-amber-50 border border-amber-200 text-amber-900 p-4 rounded-lg flex flex-wrap items-center justify-between gap-3 text-sm shadow-sm">
+                <div class="flex gap-2 items-start">
+                    <i class="ph-fill ph-warning text-lg text-amber-600 shrink-0 mt-0.5"></i>
+                    <span>
+                        Estás viendo una corrida del <strong>historial</strong>
+                        ({{ resultado.fecha_generacion|date:"d/m/Y H:i" }}), no la vigente del periodo.
+                    </span>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <a href="{% url 'apiProgramacion:horario_programado' periodo.id_periodo %}"
+                       class="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-white px-3 py-2 font-semibold text-amber-900 hover:bg-amber-100 transition">
+                        <i class="ph ph-arrow-left"></i> Ver la vigente
+                    </a>
+                    {% if puede_configurar_ag %}
+                        <form method="post"
+                              action="{% url 'apiProgramacion:activar_programacion' resultado.id_resultado %}"
+                              onsubmit="return confirm('¿Marcar esta corrida como la vigente del periodo {{ periodo.nombre_periodo }}?');">
+                            {% csrf_token %}
+                            <button type="submit"
+                                    class="inline-flex items-center gap-2 rounded-lg bg-uft-black text-white px-3 py-2 font-semibold hover:bg-uft-cyan transition">
+                                <i class="ph ph-push-pin"></i> Marcar como vigente
+                            </button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+
+        {# ----------------------------- Tarjeta resumen ----------------------------- #}
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-uft-white border border-uft-light p-5 rounded-xl shadow-sm">
+                <div class="flex items-center justify-between mb-2">
+                    <h4 class="text-xs text-uft-gray uppercase tracking-wider font-semibold">Fitness</h4>
+                    <i class="ph ph-target text-uft-cyan text-xl"></i>
+                </div>
+                <div class="font-serif text-3xl font-bold text-uft-black">{{ horario.resumen.mejor_fitness|floatformat:"0" }}</div>
+                {% if horario.resumen.limpio %}
+                    <p class="text-xs text-facultad-green font-semibold mt-1"><i class="ph-fill ph-check-circle"></i> Sin conflictos</p>
+                {% else %}
+                    <p class="text-xs text-amber-600 font-semibold mt-1"><i class="ph-fill ph-warning"></i> Con conflictos</p>
+                {% endif %}
+            </div>
+            <div class="bg-uft-white border border-uft-light p-5 rounded-xl shadow-sm">
+                <div class="flex items-center justify-between mb-2">
+                    <h4 class="text-xs text-uft-gray uppercase tracking-wider font-semibold">Paquetes</h4>
+                    <i class="ph ph-squares-four text-facultad-green text-xl"></i>
+                </div>
+                <div class="font-serif text-3xl font-bold text-uft-black">{{ horario.resumen.cant_genes }}</div>
+                <p class="text-xs text-uft-gray mt-1">{{ horario.resumen.total_bloques }} bloque(s) en la grilla</p>
+            </div>
+            <div class="bg-uft-white border border-uft-light p-5 rounded-xl shadow-sm">
+                <div class="flex items-center justify-between mb-2">
+                    <h4 class="text-xs text-uft-gray uppercase tracking-wider font-semibold">Iteraciones</h4>
+                    <i class="ph ph-arrows-clockwise text-uft-cyan text-xl"></i>
+                </div>
+                <div class="font-serif text-3xl font-bold text-uft-black">{{ horario.resumen.iteraciones }}</div>
+                <p class="text-xs text-uft-gray mt-1">
+                    {{ horario.resumen.cant_dias }} día(s) · {{ horario.resumen.max_horas_edificio }} mód./día
+                </p>
+            </div>
+            <div class="bg-uft-white border border-uft-light p-5 rounded-xl shadow-sm">
+                <div class="flex items-center justify-between mb-2">
+                    <h4 class="text-xs text-uft-gray uppercase tracking-wider font-semibold">Alcance</h4>
+                    <i class="ph ph-users-three text-facultad-green text-xl"></i>
+                </div>
+                <div class="font-serif text-3xl font-bold text-uft-black">{{ horario.resumen.total_secciones }}</div>
+                <p class="text-xs text-uft-gray mt-1">
+                    {{ horario.resumen.total_cohortes }} cohorte(s) · generado {{ horario.resumen.fecha_generacion|date:"d/m/Y H:i" }}
+                </p>
+            </div>
+        </div>
+
+        {# ------------------------------- Filtros ---------------------------------- #}
+        <form method="get"
+              action="{% url 'apiProgramacion:horario_programado' periodo.id_periodo %}"
+              class="bg-uft-white border border-uft-light rounded-xl shadow-sm p-5 mb-6">
+            <input type="hidden" name="resultado" value="{{ resultado.id_resultado }}">
+            <div class="flex items-center gap-2 mb-4">
+                <i class="ph ph-funnel text-uft-cyan text-lg"></i>
+                <h2 class="font-serif text-lg text-uft-black">Filtros</h2>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <label class="block">
+                    <span class="text-xs text-uft-gray font-semibold uppercase tracking-wider">Carrera</span>
+                    <select name="carrera" class="mt-1 w-full rounded-lg border border-uft-light bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-uft-cyan focus:border-uft-cyan transition">
+                        <option value="">Todas</option>
+                        {% for id, nombre in horario.opciones.carreras %}
+                            <option value="{{ id }}" {% if filtros.carrera == id %}selected{% endif %}>{{ nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="block">
+                    <span class="text-xs text-uft-gray font-semibold uppercase tracking-wider">Cohorte</span>
+                    <select name="cohorte" class="mt-1 w-full rounded-lg border border-uft-light bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-uft-cyan focus:border-uft-cyan transition">
+                        <option value="">Todas</option>
+                        {% for c in horario.opciones.cohortes %}
+                            <option value="{{ c }}" {% if filtros.cohorte == c %}selected{% endif %}>{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="block">
+                    <span class="text-xs text-uft-gray font-semibold uppercase tracking-wider">Profesor</span>
+                    <select name="profesor" class="mt-1 w-full rounded-lg border border-uft-light bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-uft-cyan focus:border-uft-cyan transition">
+                        <option value="">Todos</option>
+                        {% for p in horario.opciones.profesores %}
+                            <option value="{{ p }}" {% if filtros.profesor == p %}selected{% endif %}>{{ p }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="block">
+                    <span class="text-xs text-uft-gray font-semibold uppercase tracking-wider">Tipo de sala</span>
+                    <select name="tipo_sala" class="mt-1 w-full rounded-lg border border-uft-light bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-uft-cyan focus:border-uft-cyan transition">
+                        <option value="">Todos</option>
+                        {% for t, label in horario.opciones.tipos_sala %}
+                            <option value="{{ t }}" {% if filtros.tipo_sala == t %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="block">
+                    <span class="text-xs text-uft-gray font-semibold uppercase tracking-wider">Sección</span>
+                    <select name="seccion" class="mt-1 w-full rounded-lg border border-uft-light bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-uft-cyan focus:border-uft-cyan transition">
+                        <option value="">Todas</option>
+                        {% for id, label in horario.opciones.secciones %}
+                            <option value="{{ id }}" {% if filtros.seccion == id %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+            </div>
+            <div class="flex flex-wrap items-center justify-end gap-3 mt-4">
+                <a href="{% url 'apiProgramacion:horario_programado' periodo.id_periodo %}?resultado={{ resultado.id_resultado }}"
+                   class="inline-flex items-center gap-2 rounded-lg border border-uft-light bg-uft-white px-4 py-2 text-sm font-semibold text-uft-gray hover:text-uft-black transition">
+                    <i class="ph ph-x"></i> Limpiar
+                </a>
+                <button type="submit"
+                        class="inline-flex items-center gap-2 rounded-lg bg-uft-cyan hover:bg-uft-black transition px-5 py-2 text-white font-bold shadow-sm">
+                    <i class="ph ph-funnel"></i> Aplicar filtros
+                </button>
+            </div>
+        </form>
+
+        {# ------------------------------ Grillas ----------------------------------- #}
+        {% if horario.grupos %}
+            <div class="space-y-8">
+                {% for grupo in horario.grupos %}
+                <section class="bg-uft-white border border-uft-light rounded-xl shadow-sm overflow-hidden">
+                    <div class="px-6 py-4 border-b border-uft-light flex flex-wrap items-center justify-between gap-2">
+                        <h2 class="font-serif text-xl text-uft-black">{{ grupo.titulo }}</h2>
+                        <span class="text-xs text-uft-gray font-medium">
+                            {{ grupo.secciones|length }} sección(es) en la grilla
+                        </span>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs border-collapse">
+                            <thead>
+                                <tr class="bg-uft-black text-white text-left">
+                                    <th class="px-3 py-3 font-semibold w-20 text-center">Módulo</th>
+                                    {% for dia in horario.dias %}
+                                        <th class="px-3 py-3 font-semibold">{{ dia }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-uft-light">
+                                {% for fila in grupo.matriz %}
+                                <tr class="align-top">
+                                    <td class="px-3 py-2 text-center font-mono text-uft-gray bg-uft-light/40">{{ forloop.counter }}</td>
+                                    {% for celda in fila %}
+                                        <td class="px-2 py-2 border-l border-uft-light/70 min-w-[11rem]">
+                                            {% for item in celda %}
+                                                <div class="mb-1 rounded-md border px-2 py-1.5
+                                                            {% if item.es_fijo %}border-amber-300 bg-amber-50{% elif item.tipo_asignatura == 'MENCION' %}border-indigo-200 bg-indigo-50{% else %}border-uft-light bg-uft-light/30{% endif %}">
+                                                    <div class="flex items-center gap-1 font-semibold text-uft-black">
+                                                        {% if item.es_fijo %}<i class="ph-fill ph-push-pin text-amber-500"></i>{% endif %}
+                                                        <span class="font-mono text-[11px]">{{ item.codigo }}</span>
+                                                        {% if item.continuacion %}
+                                                            <span class="text-[10px] text-uft-gray font-normal">(cont.)</span>
+                                                        {% endif %}
+                                                    </div>
+                                                    <div class="text-[11px] text-uft-gray truncate" title="{{ item.nombre }}">{{ item.nombre }}</div>
+                                                    <div class="text-[10px] text-uft-gray mt-0.5">
+                                                        secc. {{ item.seccion }}{% if item.profesor %} · {{ item.profesor }}{% endif %}
+                                                    </div>
+                                                </div>
+                                            {% endfor %}
+                                        </td>
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {% if grupo.secciones %}
+                    <div class="px-6 py-3 border-t border-uft-light bg-uft-light/20 flex flex-wrap gap-2">
+                        {% for s in grupo.secciones %}
+                            <span class="inline-flex items-center gap-1 rounded-full border border-uft-light bg-white px-2 py-0.5 text-[11px] text-uft-gray">
+                                <span class="font-mono font-semibold text-uft-black">{{ s.codigo }}</span>
+                                secc. {{ s.seccion }}{% if s.nrc %} · NRC {{ s.nrc }}{% endif %}
+                            </span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </section>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="bg-uft-white border border-dashed border-uft-light rounded-xl p-12 text-center">
+                <i class="ph ph-calendar-x text-4xl text-uft-gray"></i>
+                <h3 class="font-serif text-xl text-uft-black mt-3">No hay bloques que mostrar</h3>
+                <p class="text-sm text-uft-gray mt-1">
+                    Ajusta los filtros o
+                    <a href="{% url 'apiProgramacion:configuracion_periodo' periodo.id_periodo %}" class="text-uft-cyan underline">vuelve a la configuración</a>
+                    para ejecutar el algoritmo.
+                </p>
+            </div>
+        {% endif %}
+    </div>
+</main>
+{% endblock %}
