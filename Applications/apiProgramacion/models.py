@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 from Applications.apiDemanda.models import Periodo, Seccion
@@ -173,3 +174,37 @@ class BloqueProgramado(models.Model):
             f'{self.seccion.curso.codigo_asignatura} · {self.dia_semana} '
             f'módulo {self.modulo_inicio} (+{self.num_modulos - 1})'
         )
+
+
+class EstadoProgramacionPeriodo(models.Model):
+    """Marca explícita de 'programación lista' para un periodo.
+
+    La DOAE/escuela confirma con este flag que el horario quedó cerrado. El
+    Dashboard considera el periodo 'listo' si este flag está marcado OR si
+    existe una corrida vigente seleccionada (`ProgramacionResultado.es_vigente`).
+    """
+
+    id_estado = models.AutoField(primary_key=True)
+    periodo = models.OneToOneField(
+        Periodo,
+        on_delete=models.CASCADE,
+        db_column='id_periodo',
+        related_name='estado_programacion',
+    )
+    esta_lista = models.BooleanField(default=False)
+    marcado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        db_column='id_marcado_por',
+        related_name='periodos_marcados_listos',
+    )
+    fecha_marcado = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'Estado de programación'
+        verbose_name_plural = 'Estados de programación'
+
+    def __str__(self):
+        estado = 'Lista' if self.esta_lista else 'No lista'
+        return f'{self.periodo.nombre_periodo} · {estado}'

@@ -67,11 +67,13 @@
                 <div class="px-3 mb-2 flex items-center gap-2 text-[11px] uppercase tracking-wider text-uft-light/60 font-semibold">
                     <i class="ph ph-squares-four"></i> Otros
                 </div>
-                <a href="{% url 'dashboard' %}"
-                   class="flex items-center gap-2 px-3 py-2 rounded-lg transition mb-1
-                          {% if un == 'dashboard' %}bg-uft-cyan text-white font-semibold{% else %}text-uft-light/90 hover:bg-white/10{% endif %}">
-                    <i class="ph ph-chart-pie-slice"></i> Dashboard académico
-                </a>
+                {% if user.puede_ver_dashboard %}
+                    <a href="{% url 'dashboard' %}"
+                       class="flex items-center gap-2 px-3 py-2 rounded-lg transition mb-1
+                              {% if un == 'dashboard' %}bg-uft-cyan text-white font-semibold{% else %}text-uft-light/90 hover:bg-white/10{% endif %}">
+                        <i class="ph ph-chart-pie-slice"></i> Dashboard académico
+                    </a>
+                {% endif %}
                 {% if user.is_superuser %}
                     <a href="/admin/"
                        class="flex items-center gap-2 px-3 py-2 rounded-lg text-uft-light/90 hover:bg-white/10 transition">

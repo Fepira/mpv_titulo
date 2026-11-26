@@ -95,15 +95,31 @@
                                     {% for a in asigs %}
                                         <tr class="hover:bg-[#f7fcf9] transition">
                                             <td class="px-5 py-2">
-                                                <span class="font-bold text-uft-black block">{{ a.docente.nombre_completo }}</span>
-                                                <span class="text-[10px] text-uft-gray">ID: {{ a.docente.id_docente }}</span>
+                                                {% if a.docente %}
+                                                    <span class="font-bold text-uft-black block">{{ a.docente.nombre_completo }}</span>
+                                                    <span class="text-[10px] text-uft-gray">ID: {{ a.docente.id_docente }}</span>
+                                                {% else %}
+                                                    <span class="font-bold text-amber-700 block flex items-center gap-1">
+                                                        <i class="ph ph-user-circle-plus"></i> Categoría requerida
+                                                    </span>
+                                                    <span class="text-[10px] text-uft-gray">Sin docente asignado</span>
+                                                {% endif %}
                                             </td>
                                             <td class="px-4 py-2 text-center">
-                                                {{ a.docente.categoria.nombre_categoria|default:"Sin categoría" }}
-                                                {% if a.docente.categoria %}
+                                                {% if a.docente %}
+                                                    {{ a.docente.categoria.nombre_categoria|default:"Sin categoría" }}
+                                                    {% if a.docente.categoria %}
+                                                        <div class="text-[10px] text-uft-gray">
+                                                            ${{ a.docente.categoria.tarifa_modulo|default:0 }}/mód
+                                                        </div>
+                                                    {% endif %}
+                                                {% elif a.categoria_requerida %}
+                                                    <span class="font-semibold">{{ a.categoria_requerida.nombre_categoria }}</span>
                                                     <div class="text-[10px] text-uft-gray">
-                                                        ${{ a.docente.categoria.tarifa_modulo|default:0 }}/mód
+                                                        ${{ a.categoria_requerida.tarifa_modulo|default:0 }}/mód
                                                     </div>
+                                                {% else %}
+                                                    Sin categoría
                                                 {% endif %}
                                             </td>
                                             <td class="px-4 py-2 text-center text-uft-gray">
@@ -115,11 +131,11 @@
                                             </td>
                                             <td class="px-6 py-2 text-right font-medium">${{ a.costo_proyectado|default:0 }}</td>
                                             <td class="px-4 py-2 text-center">
-                                                <form method="POST" onsubmit="return confirm('¿Desasignar {{ a.docente.nombre_completo }}?');">
+                                                <form method="POST" onsubmit="return confirm('¿Desasignar {% if a.docente %}{{ a.docente.nombre_completo }}{% else %}categoría {{ a.categoria_requerida.nombre_categoria|default:'' }}{% endif %}?');">
                                                     {% csrf_token %}
                                                     <input type="hidden" name="accion" value="desasignar_docente">
                                                     <input type="hidden" name="id_asignacion" value="{{ a.id_asignacion }}">
-                                                    <button type="submit" title="Desasignar docente" class="text-uft-gray hover:text-red-500 transition p-1">
+                                                    <button type="submit" title="Desasignar" class="text-uft-gray hover:text-red-500 transition p-1">
                                                         <i class="ph ph-user-minus text-sm"></i>
                                                     </button>
                                                 </form>
@@ -131,14 +147,14 @@
                             {% else %}
                                 <div class="px-5 py-6 text-center text-uft-gray text-xs">
                                     <i class="ph ph-user-plus text-2xl mb-2 block text-facultad-green/60"></i>
-                                    Sin docentes asignados. Usa el formulario de abajo.
+                                    Sin asignaciones. Usa los formularios de abajo.
                                 </div>
                             {% endif %}
                             {% endwith %}
                         </div>
 
-                        <div class="border-t border-facultad-green/10 bg-facultad-green/5 px-5 py-3">
-                            <form method="POST" class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end" onsubmit="event.stopPropagation()">
+                        <div class="border-t border-facultad-green/10 bg-facultad-green/5 px-5 py-3 flex flex-col lg:flex-row lg:items-end gap-4">
+                            <form method="POST" class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end flex-1" onsubmit="event.stopPropagation()">
                                 {% csrf_token %}
                                 <input type="hidden" name="accion" value="asignar_docente">
                                 <input type="hidden" name="id_componente" value="{{ comp.id_componente }}">
@@ -157,6 +173,33 @@
                                 <button type="submit"
                                         class="bg-facultad-green text-uft-black px-4 py-2 rounded-lg font-bold hover:bg-opacity-80 transition shadow-sm flex items-center justify-center gap-1.5 text-sm sm:whitespace-nowrap">
                                     <i class="ph ph-plus"></i> Asignar
+                                </button>
+                            </form>
+
+                            <div class="hidden lg:block w-px self-stretch bg-facultad-green/15"></div>
+                            <span class="lg:hidden text-center text-[10px] text-uft-gray uppercase tracking-wider font-semibold">o</span>
+
+                            <form method="POST" class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end flex-1" onsubmit="event.stopPropagation()">
+                                {% csrf_token %}
+                                <input type="hidden" name="accion" value="asignar_categoria">
+                                <input type="hidden" name="id_componente" value="{{ comp.id_componente }}">
+                                <div class="flex-1 min-w-[220px]">
+                                    <label class="block text-[10px] text-uft-gray uppercase tracking-wider font-semibold mb-1">
+                                        Categoría requerida (costear sin docente)
+                                    </label>
+                                    <select
+                                        name="id_categoria"
+                                        required
+                                        class="w-full border border-uft-light rounded-lg px-3 py-2 text-sm bg-uft-white focus:outline-none focus:border-uft-cyan focus:ring-1 focus:ring-uft-cyan">
+                                        <option value="">Selecciona una categoría...</option>
+                                        {% for c_id, c_nom, c_tar in categorias_options %}
+                                            <option value="{{ c_id }}">{{ c_nom }} — ${{ c_tar }}/mód</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <button type="submit"
+                                        class="bg-uft-cyan text-uft-black px-4 py-2 rounded-lg font-bold hover:bg-opacity-80 transition shadow-sm flex items-center justify-center gap-1.5 text-sm sm:whitespace-nowrap">
+                                    <i class="ph ph-currency-dollar"></i> Costear
                                 </button>
                             </form>
                         </div>

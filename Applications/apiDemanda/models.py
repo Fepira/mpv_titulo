@@ -11,6 +11,7 @@ class NombreRol:
     JEFE_CARRERA = "Jefe de Carrera"
     DOCENTE = "Docente"
     ASISTENTE = "Asistente de Gestión"
+    DOAE = "DOAE"
 
     CHOICES = [
         (ADMIN, ADMIN),
@@ -18,6 +19,7 @@ class NombreRol:
         (JEFE_CARRERA, JEFE_CARRERA),
         (DOCENTE, DOCENTE),
         (ASISTENTE, ASISTENTE),
+        (DOAE, DOAE),
     ]
 
 
@@ -55,6 +57,11 @@ class Usuario(AbstractUser):
 
     def tiene_rol(self, nombre_rol):
         return self.groups.filter(name=nombre_rol).exists()
+
+    @property
+    def puede_ver_dashboard(self):
+        """El Dashboard de carrera piloto es visible solo para Administrador o DOAE."""
+        return self.is_superuser or self.tiene_rol(NombreRol.DOAE)
 
     def agregar_rol(self, nombre_rol):
         grupo, _ = Group.objects.get_or_create(name=nombre_rol)
@@ -318,13 +325,23 @@ class Docente(models.Model):
 
 class AsignacionDocente(models.Model):
     id_asignacion = models.AutoField(primary_key=True)
-    docente = models.ForeignKey(Docente, on_delete=models.CASCADE, db_column='id_docente')
+    docente = models.ForeignKey(Docente, on_delete=models.CASCADE, db_column='id_docente', null=True, blank=True)
+    categoria_requerida = models.ForeignKey(
+        CategoriaDocente, on_delete=models.CASCADE, db_column='id_categoria_requerida',
+        null=True, blank=True, related_name='asignaciones_requeridas',
+    )
     componente = models.ForeignKey(SeccionComponente, on_delete=models.CASCADE, db_column='id_componente', related_name='asignaciones')
     usuario_asignador = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, db_column='id_usuario_asignador', related_name='asignaciones_realizadas')
     costo_proyectado = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
 
     class Meta:
         unique_together = [('componente', 'docente')]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(docente__isnull=False) | models.Q(categoria_requerida__isnull=False),
+                name='asignacion_con_docente_o_categoria',
+            ),
+        ]
 
 class Alumno(models.Model):
     id_alumno = models.CharField(primary_key=True, max_length=15)

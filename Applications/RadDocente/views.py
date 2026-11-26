@@ -9,7 +9,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
 from Applications.apiDemanda.models import (
-    AsignacionDocente, Curso, Docente, Periodo, Seccion, SeccionComponente,
+    AsignacionDocente, CategoriaDocente, Curso, Docente, Periodo, Seccion, SeccionComponente,
 )
 
 
@@ -48,6 +48,13 @@ def _determinar_modulos(curso: Curso, nombre_componente: str) -> int:
 def _calcular_costo(docente: Docente, curso: Curso, nombre_componente: str):
     modulos = _determinar_modulos(curso, nombre_componente)
     tarifa = docente.categoria.tarifa_modulo if (docente.categoria and docente.categoria.tarifa_modulo) else 0
+    return (Decimal(modulos) * Decimal(tarifa) * MESES_SEMESTRE), modulos
+
+
+def _calcular_costo_categoria(categoria: CategoriaDocente, curso: Curso, nombre_componente: str):
+    """Costo proyectado usando la tarifa de la categoría requerida (sin docente)."""
+    modulos = _determinar_modulos(curso, nombre_componente)
+    tarifa = categoria.tarifa_modulo if categoria.tarifa_modulo else 0
     return (Decimal(modulos) * Decimal(tarifa) * MESES_SEMESTRE), modulos
 
 
@@ -187,6 +194,38 @@ def gestionar_presupuesto(request, id_periodo, id_curso=None):
             )
             return redirect(redirect_url)
 
+        if accion == 'asignar_categoria':
+            id_componente = request.POST.get('id_componente')
+            id_categoria = request.POST.get('id_categoria', '').strip()
+            if not id_componente or not id_categoria:
+                messages.error(request, "Faltan datos: componente y/o categoría requerida.")
+                return redirect(redirect_url)
+            componente = get_object_or_404(
+                SeccionComponente, pk=id_componente,
+                seccion__periodo=periodo,
+            )
+            categoria = get_object_or_404(CategoriaDocente, pk=id_categoria)
+            cur = componente.seccion.curso
+            costo, modulos = _calcular_costo_categoria(categoria, cur, componente.componente_curso)
+            with transaction.atomic():
+                # Una sola categoría requerida por componente (sin docente): reemplaza la existente.
+                AsignacionDocente.objects.filter(
+                    componente=componente, docente__isnull=True,
+                ).delete()
+                AsignacionDocente.objects.create(
+                    componente=componente, docente=None,
+                    categoria_requerida=categoria,
+                    usuario_asignador=request.user,
+                    costo_proyectado=costo,
+                )
+            messages.success(
+                request,
+                f"[{cur.codigo_asignatura} - {componente.seccion.nrc_seccion}] "
+                f"Categoría requerida asignada: {categoria.nombre_categoria} → {componente.componente_curso}. "
+                f"{modulos} mod × ${categoria.tarifa_modulo:,} × {MESES_SEMESTRE} meses = ${costo:,.0f}"
+            )
+            return redirect(redirect_url)
+
         if accion == 'desasignar_docente':
             id_asignacion = request.POST.get('id_asignacion')
             asignacion = get_object_or_404(
@@ -195,16 +234,22 @@ def gestionar_presupuesto(request, id_periodo, id_curso=None):
             )
             cod = asignacion.componente.seccion.curso.codigo_asignatura
             nrc = asignacion.componente.seccion.nrc_seccion
-            nombre = f"{asignacion.docente.nombre_completo} ({asignacion.componente.componente_curso})"
+            if asignacion.docente:
+                nombre = f"{asignacion.docente.nombre_completo} ({asignacion.componente.componente_curso})"
+            else:
+                cat = asignacion.categoria_requerida.nombre_categoria if asignacion.categoria_requerida else "Sin categoría"
+                nombre = f"Categoría {cat} ({asignacion.componente.componente_curso})"
             asignacion.delete()
-            messages.info(request, f"[{cod} - {nrc}] Docente desasignado: {nombre}.")
+            messages.info(request, f"[{cod} - {nrc}] Desasignado: {nombre}.")
             return redirect(redirect_url)
 
         messages.error(request, f"Acción desconocida: '{accion}'.")
         return redirect(redirect_url)
 
     # --- GET ---
-    qs_asigs = AsignacionDocente.objects.select_related('docente', 'docente__categoria', 'usuario_asignador')
+    qs_asigs = AsignacionDocente.objects.select_related(
+        'docente', 'docente__categoria', 'categoria_requerida', 'usuario_asignador',
+    )
 
     secciones_qs = (
         Seccion.objects
@@ -264,6 +309,12 @@ def gestionar_presupuesto(request, id_periodo, id_curso=None):
         .values_list('id_docente', 'nombre_completo', 'categoria__nombre_categoria')
     )
 
+    categorias_options = list(
+        CategoriaDocente.objects
+        .order_by('nombre_categoria')
+        .values_list('id_categoria', 'nombre_categoria', 'tarifa_modulo')
+    )
+
     if curso_actual:
         context = {
             'periodo': periodo,
@@ -275,6 +326,7 @@ def gestionar_presupuesto(request, id_periodo, id_curso=None):
             'total_secciones': total_secciones,
             'total_asignaciones': total_asignaciones,
             'docentes_options': docentes_options,
+            'categorias_options': categorias_options,
             'es_detalle_curso': True,
             'is_paginated': False,
         }
@@ -301,6 +353,7 @@ def gestionar_presupuesto(request, id_periodo, id_curso=None):
         'total_secciones': total_secciones,
         'total_asignaciones': total_asignaciones,
         'docentes_options': docentes_options,
+        'categorias_options': categorias_options,
         'es_detalle_curso': False,
     }
     return render(request, 'RadDocente/presupuesto_periodo.html', context)

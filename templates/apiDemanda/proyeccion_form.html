@@ -63,10 +63,7 @@
                     {% for p in periodos %}
                         <option value="{{ p.id_periodo }}"
                             {% if periodo_seleccionado and periodo_seleccionado.id_periodo == p.id_periodo %}selected{% endif %}>
-                            #{{ p.id_periodo }}  —  {{ p.nombre_periodo }}
-                            {% if p.total_secciones or p.total_estimaciones %}
-                                (ya tiene {{ p.total_secciones|default:0 }} secciones / {{ p.total_estimaciones|default:0 }} estimaciones)
-                            {% endif %}
+                            #{{ p.id_periodo }}  —  {{ p.nombre_periodo }}{% if p.total_secciones or p.total_estimaciones %} (ya proyectado){% endif %}
                         </option>
                     {% empty %}
                         <option value="">No hay períodos creados → crealos desde /admin</option>
